@@ -1,5 +1,5 @@
-import { MODES, ROOTS } from '../music/theory.js';
-import { hasNotes } from '../music/tab.js';
+import { MODES, ROOTS } from '../music/theory.ts';
+import { hasNotes } from '../music/tab.ts';
 
 const DIVISIONS = [
   { value: 4, label: 'Each column = ♩ quarter' },

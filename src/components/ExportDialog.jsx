@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { toAscii } from '../music/ascii.js';
+import { toAscii } from '../music/ascii.ts';
 
 export default function ExportDialog({ sheet, onClose, onDeleteSheet }) {
   const [message, setMessage] = useState('');

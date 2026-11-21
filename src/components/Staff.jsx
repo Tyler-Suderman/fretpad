@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { OPEN, TUNING, keyName, noteName } from '../music/theory.js';
+import { OPEN, TUNING, keyName, noteName } from '../music/theory.ts';
 
 const strings = TUNING.map((_, s) => s);
 

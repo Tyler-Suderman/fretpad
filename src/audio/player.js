@@ -1,6 +1,6 @@
 // Look-ahead playback scheduler: queues notes slightly ahead on the audio clock so timing holds even
 // when the page is busy, and reports which column is sounding. Framework-free.
-import { midiOf } from '../music/theory.js';
+import { midiOf } from '../music/theory.ts';
 
 const LOOKAHEAD = 0.12; // seconds of audio scheduled ahead
 const TICK_MS = 25;

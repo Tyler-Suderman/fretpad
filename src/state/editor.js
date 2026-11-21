@@ -8,7 +8,7 @@
 //
 // Each mode lists the actions it accepts. An action a mode does not list is ignored, so UI states
 // can't leak into each other. GLOBAL actions work in every mode.
-import { alternativesFor, clampPos, fingerFor, fitRun, inBox, inferPos } from '../music/fingering.js';
+import { alternativesFor, clampPos, fingerFor, fitRun, inBox, inferPos } from '../music/fingering.ts';
 import {
   barEvent,
   isNotes,
@@ -21,8 +21,8 @@ import {
   restEvent,
   sampleSheet,
   stepToNote,
-} from '../music/tab.js';
-import { FRETS, OPEN, midiAt, midiOf, scaleOf } from '../music/theory.js';
+} from '../music/tab.ts';
+import { FRETS, OPEN, midiAt, midiOf, scaleOf } from '../music/theory.ts';
 
 const MAX_UNDO = 100;
 export const ADDING = { type: 'adding' };

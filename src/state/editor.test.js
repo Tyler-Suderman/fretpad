@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { midiOf } from '../music/theory.js';
-import { newSheet, noteEvent } from '../music/tab.js';
+import { midiOf } from '../music/theory.ts';
+import { newSheet, noteEvent } from '../music/tab.ts';
 import { accepts, createEditorState, currentSheet, editorReducer } from './editor.js';
 import { parseSaved } from './storage.js';
 

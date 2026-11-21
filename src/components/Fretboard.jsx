@@ -1,5 +1,5 @@
-import { fingerFor, inBox } from '../music/fingering.js';
-import { FRETS, OPEN, TUNING, midiAt, noteName } from '../music/theory.js';
+import { fingerFor, inBox } from '../music/fingering.ts';
+import { FRETS, OPEN, TUNING, midiAt, noteName } from '../music/theory.ts';
 
 const FRET_NUMBERS = Array.from({ length: FRETS + 1 }, (_, f) => f);
 const INLAYS = [3, 5, 7, 9, 15];

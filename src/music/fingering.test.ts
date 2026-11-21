@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { alternativesFor, fingerFor, fitRun, inferPos } from './fingering.js';
-import { midiOf } from './theory.js';
+import { alternativesFor, fingerFor, fitRun, inferPos } from './fingering.ts';
+import { midiOf } from './theory.ts';
+import type { Finger, Note } from './types.ts';
+
+const note = (s: number, f: number, finger: Finger = ''): Note => ({ s, f, finger });
 
 describe('fingerFor', () => {
   it('gives one finger per fret inside the box and clamps outside it', () => {
@@ -15,26 +18,26 @@ describe('fingerFor', () => {
 describe('inferPos', () => {
   it('reads the position from written fingers', () => {
     const notes = [
-      { s: 2, f: 7, finger: '3' },
-      { s: 2, f: 5, finger: '1' },
-      { s: 1, f: 8, finger: '4' },
+      note(2, 7, '3'),
+      note(2, 5, '1'),
+      note(1, 8, '4'),
     ];
     expect(inferPos(notes)).toBe(5);
   });
 
   it('falls back to the lowest fretted note', () => {
-    expect(inferPos([{ s: 0, f: 9, finger: '' }, { s: 0, f: 0, finger: '0' }])).toBe(9);
+    expect(inferPos([note(0, 9), note(0, 0, '0')])).toBe(9);
   });
 });
 
 describe('fitRun', () => {
   // G major run starting on low E string, 3rd fret: G A B C D
   const run = [
-    { s: 5, f: 3, finger: '' },
-    { s: 5, f: 5, finger: '' },
-    { s: 4, f: 2, finger: '' },
-    { s: 4, f: 3, finger: '' },
-    { s: 4, f: 5, finger: '' },
+    note(5, 3),
+    note(5, 5),
+    note(4, 2),
+    note(4, 3),
+    note(4, 5),
   ];
 
   it('keeps every pitch', () => {
@@ -49,7 +52,7 @@ describe('fitRun', () => {
       expect(n.f).toBeGreaterThanOrEqual(1);
       expect(n.f).toBeLessThanOrEqual(6);
     }
-    expect(moved[0]).toMatchObject({ s: 5, f: 3, finger: '2' });
+    expect(moved[0]).toMatchObject(note(5, 3, '2'));
   });
 
   it('does not mutate the input', () => {
@@ -61,20 +64,20 @@ describe('fitRun', () => {
 
 describe('alternativesFor', () => {
   it('lists the same pitch elsewhere and flags exactly one best option', () => {
-    const note = { s: 1, f: 5, finger: '1' }; // E4 on the B string
-    const alts = alternativesFor(note, [], 5, null);
-    expect(alts.every((a) => midiOf(a) === midiOf(note))).toBe(true);
-    expect(alts.some((a) => a.s === note.s && a.f === note.f)).toBe(false);
+    const e4 = note(1, 5, '1'); // E4 on the B string
+    const alts = alternativesFor(e4, [], 5, null);
+    expect(alts.every((a) => midiOf(a) === midiOf(e4))).toBe(true);
+    expect(alts.some((a) => a.s === e4.s && a.f === e4.f)).toBe(false);
     expect(alts.filter((a) => a.best)).toHaveLength(1);
   });
 
   it('prefers the spot that fits neighbouring notes', () => {
     // neighbours sit around fret 9-12 on G/D strings
     const neighbours = [
-      { s: 2, f: 11, finger: '' },
-      { s: 3, f: 12, finger: '' },
+      note(2, 11),
+      note(3, 12),
     ];
-    const best = alternativesFor({ s: 0, f: 0, finger: '0' }, neighbours, 9, null).find((a) => a.best);
-    expect(best.f).toBeGreaterThanOrEqual(9);
+    const best = alternativesFor(note(0, 0, '0'), neighbours, 9, null).find((a) => a.best);
+    expect(best?.f).toBeGreaterThanOrEqual(9);
   });
 });

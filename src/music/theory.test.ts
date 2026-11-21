@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { keyName, midiOf, noteName, scaleOf, spotsFor } from './theory.js';
+import { keyName, midiOf, noteName, scaleOf, spotsFor } from './theory.ts';
+import type { Key } from './types.ts';
 
 const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const spell = (key) =>
-  [...scaleOf(key)]
+const spell = (key: Key) =>
+  [...(scaleOf(key) ?? [])]
     .sort((a, b) => ((a - key.root + 12) % 12) - ((b - key.root + 12) % 12))
     .map((pc) => NAMES[pc])
     .join(' ');

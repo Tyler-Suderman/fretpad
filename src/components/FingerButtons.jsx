@@ -1,4 +1,4 @@
-import { FINGERS } from '../music/theory.js';
+import { FINGERS } from '../music/theory.ts';
 
 /** Round finger buttons 1-4, T and optionally "none". `current` gets a ring. */
 export default function FingerButtons({ current, onPick, allowNone = true }) {

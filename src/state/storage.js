@@ -1,5 +1,5 @@
 // Persists sheets and settings to localStorage. Reads the prototype's format too.
-import { newSheet } from '../music/tab.js';
+import { newSheet } from '../music/tab.ts';
 
 const STORAGE_KEY = 'fretpad.v1';
 const VERSION = 2;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { toAscii } from './ascii.js';
-import { barEvent, neighbourNotes, newSheet, noteEvent, restEvent, sampleSheet, stepToNote } from './tab.js';
+import { toAscii } from './ascii.ts';
+import { barEvent, neighbourNotes, newSheet, noteEvent, restEvent, sampleSheet, stepToNote } from './tab.ts';
 
 describe('tab model', () => {
   it('stores open strings with the open finger', () => {

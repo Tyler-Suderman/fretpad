@@ -1,7 +1,7 @@
 // View models: derive what each part of the screen shows from editor state. Pure.
-import { alternativesFor } from '../music/fingering.js';
-import { isNotes, leadNote, neighbourNotes, noteIndicesBetween } from '../music/tab.js';
-import { midiOf, scaleOf } from '../music/theory.js';
+import { alternativesFor } from '../music/fingering.ts';
+import { isNotes, leadNote, neighbourNotes, noteIndicesBetween } from '../music/tab.ts';
+import { midiOf, scaleOf } from '../music/theory.ts';
 import { currentSheet } from './editor.js';
 
 /** Columns of the tab staff with their highlight flags. */

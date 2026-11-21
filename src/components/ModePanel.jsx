@@ -1,6 +1,6 @@
 // The strip between the tab and the fretboard. One panel per editor mode.
-import { hasNotes, leadNote, noteIndicesBetween } from '../music/tab.js';
-import { TUNING, keyName, midiOf, noteName, scaleOf } from '../music/theory.js';
+import { hasNotes, leadNote, noteIndicesBetween } from '../music/tab.ts';
+import { TUNING, keyName, midiOf, noteName, scaleOf } from '../music/theory.ts';
 import FingerButtons from './FingerButtons.jsx';
 
 const where = (n) => `${TUNING[n.s].label} string · fret ${n.f} · ${noteName(n.s, n.f)}`;
