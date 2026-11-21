@@ -1,5 +1,11 @@
 # Fretpad to-do
 
+## Project
+- [x] Move from the single-file prototype to React + Vite with tests and CI (2026-11-21)
+- [ ] Remove prototype/ once the React app is confirmed at parity
+- [ ] Deploy to GitHub Pages
+- [ ] Sync sheets across devices (account storage) and a text backup/restore
+
 ## Key and mode awareness (idea, 2026-11-21)
 Set a root and mode per sheet (e.g. A Dorian). Then in fingering mode:
 - [x] Root + mode per sheet (7 modes plus major/minor pentatonic), shown in export.
