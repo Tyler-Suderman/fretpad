@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPlayer } from './player.js';
 import { createSynth } from './synth.js';
 
@@ -23,11 +23,15 @@ export function usePlayback(sheet, settings) {
     return () => player.stop();
   }, []);
 
-  return {
-    playingIndex,
-    playing,
-    start: (opts) => engine.current.player.start(opts),
-    stop: () => engine.current.player.stop(),
-    preview: (midi) => engine.current.synth.preview(midi),
-  };
+  // stable identities, so callers can use them in effect dependencies
+  const controls = useMemo(
+    () => ({
+      start: (opts) => engine.current.player.start(opts),
+      stop: () => engine.current?.player.stop(),
+      preview: (midi) => engine.current.synth.preview(midi),
+    }),
+    [],
+  );
+
+  return { playingIndex, playing, ...controls };
 }
