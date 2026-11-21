@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useReducer, useState } from 'react';
-import { usePlayback } from './audio/usePlayback.js';
+import { usePlayback } from './audio/usePlayback.ts';
 import ExportDialog from './components/ExportDialog.jsx';
 import Fretboard from './components/Fretboard.jsx';
 import Header from './components/Header.jsx';

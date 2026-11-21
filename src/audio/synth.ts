@@ -5,36 +5,61 @@
 // into a guitar-body EQ (air ~105 Hz, top ~210 Hz, wood ~420 Hz, pick presence ~2.6 kHz),
 // a gentle top-end roll-off, and a small room reverb.
 
-const midiToHz = (m) => 440 * 2 ** ((m - 69) / 12);
+const midiToHz = (m: number): number => 440 * 2 ** ((m - 69) / 12);
 
-export function createSynth() {
-  let ctx = null;
-  let input = null;
-  const strings = new Map(); // midi -> { buffer, rate }
+export interface Synth {
+  /** Call from a user gesture: browsers only start audio after one. */
+  resume(): void;
+  /** Pluck MIDI note `m` at audio time `t` for `dur` seconds. */
+  pluck(m: number, t: number, dur: number): void;
+  /** Metronome tick; `accent` for the first beat of a bar. */
+  click(t: number, accent: boolean): void;
+  /** Play one note now (fret taps, selecting notes). */
+  preview(m: number): void;
+  /** Current audio clock time in seconds (0 before audio starts). */
+  now(): number;
+}
 
-  function setup() {
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
-    input = ctx.createGain();
+interface Engine {
+  ctx: AudioContext;
+  input: GainNode;
+}
+
+interface KarplusString {
+  buffer: AudioBuffer;
+  rate: number;
+}
+
+type WindowWithWebkit = Window & { webkitAudioContext?: typeof AudioContext };
+
+export function createSynth(): Synth {
+  let engine: Engine | null = null;
+  const strings = new Map<number, KarplusString>();
+
+  function setup(): Engine {
+    const Ctor = window.AudioContext ?? (window as WindowWithWebkit).webkitAudioContext;
+    if (!Ctor) throw new Error('Web Audio is not supported in this browser');
+    const ctx = new Ctor();
+    const input = ctx.createGain();
     input.gain.value = 0.75;
 
-    const eq = (type, frequency, Q, gain) => {
+    const eq = (type: BiquadFilterType, frequency: number, Q: number, gain: number): BiquadFilterNode => {
       const f = ctx.createBiquadFilter();
-      Object.assign(f, { type });
+      f.type = type;
       f.frequency.value = frequency;
       f.Q.value = Q;
       f.gain.value = gain;
       return f;
     };
-    const body = [
+    const body: BiquadFilterNode[] = [
       eq('peaking', 105, 1.4, 5),
       eq('peaking', 210, 1.6, 3.5),
       eq('peaking', 420, 2, 1.5),
       eq('peaking', 2600, 1, 2),
       eq('lowpass', 4200, 0.6, 0),
     ];
-    input.connect(body[0]);
-    for (let i = 1; i < body.length; i++) body[i - 1].connect(body[i]);
-    const out = body[body.length - 1];
+    // chain input -> each filter in order; connect() returns its destination
+    const out = body.reduce<AudioNode>((prev, node) => prev.connect(node), input);
     const comp = ctx.createDynamicsCompressor();
     out.connect(comp);
     comp.connect(ctx.destination);
@@ -53,17 +78,18 @@ export function createSynth() {
     out.connect(room);
     room.connect(wet);
     wet.connect(comp);
+    return { ctx, input };
   }
 
-  /** Call from a user gesture: browsers only start audio after one. */
-  function resume() {
-    if (!ctx) setup();
-    if (ctx.state === 'suspended') ctx.resume();
-    return ctx;
+  function resume(): Engine {
+    engine ??= setup();
+    if (engine.ctx.state === 'suspended') void engine.ctx.resume();
+    return engine;
   }
 
-  function stringFor(m) {
-    if (strings.has(m)) return strings.get(m);
+  function stringFor(ctx: AudioContext, m: number): KarplusString {
+    const cached = strings.get(m);
+    if (cached) return cached;
     const sr = ctx.sampleRate;
     const hz = midiToHz(m);
     const period = Math.max(2, Math.floor(sr / hz));
@@ -75,21 +101,22 @@ export function createSynth() {
       const x = i / period;
       ex[i] = (x < 0.3 ? x / 0.3 : (1 - x) / 0.7) - 0.5 + (Math.random() * 2 - 1) * 0.16;
     }
+    // indices below are in range by construction; typed arrays read as `number | undefined` under strict indexing
     for (let pass = 0; pass < 2; pass++) {
-      let p = ex[0];
-      for (let i = 0; i < period; i++) ex[i] = p = p * 0.5 + ex[i] * 0.5;
+      let p = ex[0]!;
+      for (let i = 0; i < period; i++) ex[i] = p = p * 0.5 + ex[i]! * 0.5;
     }
-    for (let i = 0; i < period; i++) d[i] = ex[i] * 0.9;
-    for (let i = period; i < d.length; i++) d[i] = 0.4975 * (d[i - period] + d[i - period + 1]);
+    for (let i = 0; i < period; i++) d[i] = ex[i]! * 0.9;
+    for (let i = period; i < d.length; i++) d[i] = 0.4975 * (d[i - period]! + d[i - period + 1]!);
     // the loop tunes to sr/(period+0.5); playbackRate corrects the rest so every fret is in tune
-    const entry = { buffer, rate: hz / (sr / (period + 0.5)) };
+    const entry: KarplusString = { buffer, rate: hz / (sr / (period + 0.5)) };
     strings.set(m, entry);
     return entry;
   }
 
-  /** Pluck MIDI note `m` at audio time `t` for `dur` seconds. */
-  function pluck(m, t, dur) {
-    const { buffer, rate } = stringFor(m);
+  function pluck(m: number, t: number, dur: number): void {
+    const { ctx, input } = resume();
+    const { buffer, rate } = stringFor(ctx, m);
     const src = ctx.createBufferSource();
     const g = ctx.createGain();
     src.buffer = buffer;
@@ -128,8 +155,8 @@ export function createSynth() {
     }
   }
 
-  /** Metronome tick; `accent` for the first beat of a bar. */
-  function click(t, accent) {
+  function click(t: number, accent: boolean): void {
+    const { ctx, input } = resume();
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type = 'sine';
@@ -142,11 +169,16 @@ export function createSynth() {
     o.stop(t + 0.07);
   }
 
-  /** Play one note now (fret taps, selecting notes). */
-  function preview(m) {
-    resume();
+  function preview(m: number): void {
+    const { ctx } = resume();
     pluck(m, ctx.currentTime + 0.01, 0.9);
   }
 
-  return { resume, pluck, click, preview, now: () => ctx?.currentTime ?? 0 };
+  return {
+    resume: () => void resume(),
+    pluck,
+    click,
+    preview,
+    now: () => engine?.ctx.currentTime ?? 0,
+  };
 }

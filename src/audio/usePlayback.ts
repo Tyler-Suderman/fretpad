@@ -1,16 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPlayer } from './player.js';
-import { createSynth } from './synth.js';
+import { createPlayer } from './player.ts';
+import { createSynth } from './synth.ts';
+import type { Sheet } from '../music/types.ts';
+import type { PlaybackSettings, Player, StartOptions } from './player.ts';
+import type { Synth } from './synth.ts';
 
 /**
  * Owns the synth and player for the app's lifetime.
  * Returns the sounding column (-1 when stopped) plus start/stop/preview.
  */
-export function usePlayback(sheet, settings) {
+export interface Playback {
+  playing: boolean;
+  /** Column now sounding, or -1. */
+  playingIndex: number;
+  start(options?: StartOptions): void;
+  stop(): void;
+  preview(midi: number): void;
+}
+
+export function usePlayback(sheet: Sheet, settings: PlaybackSettings): Playback {
   const [playing, setPlaying] = useState(false);
   const [playingIndex, setPlayingIndex] = useState(-1);
   const latest = useRef({ sheet, settings });
-  const engine = useRef(null);
+  const engine = useRef<{ synth: Synth; player: Player } | null>(null);
 
   useEffect(() => {
     latest.current = { sheet, settings };
@@ -26,9 +38,9 @@ export function usePlayback(sheet, settings) {
   // stable identities, so callers can use them in effect dependencies
   const controls = useMemo(
     () => ({
-      start: (opts) => engine.current.player.start(opts),
+      start: (opts?: StartOptions) => engine.current?.player.start(opts),
       stop: () => engine.current?.player.stop(),
-      preview: (midi) => engine.current.synth.preview(midi),
+      preview: (midi: number) => engine.current?.synth.preview(midi),
     }),
     [],
   );

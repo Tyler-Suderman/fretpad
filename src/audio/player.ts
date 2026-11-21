@@ -1,27 +1,66 @@
 // Look-ahead playback scheduler: queues notes slightly ahead on the audio clock so timing holds even
 // when the page is busy, and reports which column is sounding. Framework-free.
 import { midiOf } from '../music/theory.ts';
+import type { Column, Division, Sheet } from '../music/types.ts';
+import type { Synth } from './synth.ts';
 
 const LOOKAHEAD = 0.12; // seconds of audio scheduled ahead
 const TICK_MS = 25;
 
 /** Seconds per column: bpm counts quarter notes; div is the column's note value (4, 8, 16). */
-export const columnSeconds = (bpm, div) => 60 / bpm / (div / 4);
+export const columnSeconds = (bpm: number, div: Division): number => 60 / bpm / (div / 4);
 
-const playable = (events) => events.some((e) => e.kind !== 'bar');
+const playable = (events: readonly Column[]): boolean => events.some((e) => e.kind !== 'bar');
+
+export interface PlaybackSettings {
+  loop: boolean;
+  click: boolean;
+}
+
+export interface PlaybackSource {
+  sheet: Sheet;
+  settings: PlaybackSettings;
+}
+
+export interface StartOptions {
+  /** Play and loop just these columns (inclusive). */
+  range?: { a: number; b: number };
+  /** Column to start from when there is no range. */
+  from?: number;
+}
+
+export interface Player {
+  start(options?: StartOptions): void;
+  stop(): void;
+  isPlaying(): boolean;
+}
+
+interface Run {
+  i: number;
+  lo: number;
+  hi: number | null;
+  step: number;
+  next: number;
+  /** Columns scheduled but not yet sounding; i = -1 marks the end. */
+  queue: { t: number; i: number }[];
+  ending: boolean;
+}
 
 /**
- * @param synth   from createSynth()
- * @param read    () => ({ sheet, settings }) — read live so edits during playback are heard
- * @param onStep  (index) => void — the column now sounding
- * @param onState (playing: boolean) => void
+ * @param read  read live, so edits during playback are heard
+ * @param onStep  the column now sounding (-1 when stopped)
  */
-export function createPlayer(synth, read, { onStep, onState }) {
-  let timer = null;
-  let frame = null;
-  let run = null;
+export function createPlayer(
+  synth: Synth,
+  read: () => PlaybackSource,
+  { onStep, onState }: { onStep: (index: number) => void; onState: (playing: boolean) => void },
+): Player {
+  let timer: ReturnType<typeof setInterval> | undefined;
+  let frame = 0;
+  let run: Run | null = null;
 
-  function schedule() {
+  function schedule(): void {
+    if (!run) return;
     const { sheet, settings } = read();
     const { events } = sheet;
     const len = columnSeconds(sheet.bpm, sheet.div);
@@ -39,6 +78,7 @@ export function createPlayer(synth, read, { onStep, onState }) {
         break;
       }
       const ev = events[run.i];
+      if (!ev) break;
       if (ev.kind === 'bar') {
         run.i += 1;
         run.step = 0; // accent the first beat after a bar line
@@ -53,17 +93,17 @@ export function createPlayer(synth, read, { onStep, onState }) {
     }
   }
 
-  function follow() {
+  function follow(): void {
     if (!run) return;
-    let current = null;
-    while (run.queue.length && run.queue[0].t <= synth.now()) current = run.queue.shift().i;
+    let current: number | null = null;
+    const now = synth.now();
+    while (run.queue[0] && run.queue[0].t <= now) current = run.queue.shift()!.i;
     if (current === -1) return stop();
     if (current !== null) onStep(current);
     frame = requestAnimationFrame(follow);
   }
 
-  /** range = { a, b } plays and loops those columns; otherwise start at `from` and loop the sheet. */
-  function start({ range, from = 0 } = {}) {
+  function start({ range, from = 0 }: StartOptions = {}): void {
     stop();
     if (!playable(read().sheet.events)) return;
     synth.resume();
@@ -82,7 +122,7 @@ export function createPlayer(synth, read, { onStep, onState }) {
     frame = requestAnimationFrame(follow);
   }
 
-  function stop() {
+  function stop(): void {
     if (!run) return;
     clearInterval(timer);
     cancelAnimationFrame(frame);
