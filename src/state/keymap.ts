@@ -1,8 +1,18 @@
-// Keyboard shortcuts per editor mode. Returns an editor action, { type: 'TOGGLE_PLAY' }, or null. Pure.
+// Keyboard shortcuts per editor mode. Pure.
+import type { FrettingFinger } from '../music/types.ts';
+import type { Action, Mode } from './editor.ts';
 
-const fingerKey = (key) => (['1', '2', '3', '4'].includes(key) ? key : key.toLowerCase() === 't' ? 'T' : null);
+/** An editor action, or the app-level play/stop toggle. */
+export type KeyCommand = Action | { type: 'TOGGLE_PLAY' };
 
-export function keyToAction({ key, shiftKey, metaKey, ctrlKey }, mode) {
+type KeyInput = Pick<KeyboardEvent, 'key' | 'shiftKey' | 'metaKey' | 'ctrlKey'>;
+
+const fingerKey = (key: string): FrettingFinger | null => {
+  if (key === '1' || key === '2' || key === '3' || key === '4') return key;
+  return key.toLowerCase() === 't' ? 'T' : null;
+};
+
+export function keyToAction({ key, shiftKey, metaKey, ctrlKey }: KeyInput, mode: Mode): KeyCommand | null {
   const lower = key.toLowerCase();
   if ((metaKey || ctrlKey) && lower === 'z') return { type: 'UNDO' };
   if (metaKey || ctrlKey) return null;

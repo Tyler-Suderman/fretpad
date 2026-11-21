@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { leadNote, newSheet, noteEvent } from '../music/tab.ts';
 import { midiOf } from '../music/theory.ts';
-import { newSheet, noteEvent } from '../music/tab.ts';
-import { accepts, createEditorState, currentSheet, editorReducer } from './editor.js';
-import { parseSaved } from './storage.js';
+import type { Note } from '../music/types.ts';
+import { accepts, createEditorState, currentSheet, editorReducer } from './editor.ts';
+import type { Action, EditorState } from './editor.ts';
+import { parseSaved } from './storage.ts';
 
-const run = (state, ...actions) => actions.reduce(editorReducer, state);
-const blank = () => createEditorState({ sheets: [newSheet('Test')] });
-const sheet = (state) => currentSheet(state);
+const run = (state: EditorState, ...actions: Action[]): EditorState => actions.reduce(editorReducer, state);
+const blank = (): EditorState => createEditorState({ sheets: [newSheet('Test')] });
+const sheet = (state: EditorState) => currentSheet(state);
+/** Lead note of column i (null for rests, bars and missing columns). */
+const lead = (state: EditorState, i: number): Note | null => leadNote(sheet(state).events[i]);
+const leads = (state: EditorState): Note[] => sheet(state).events.flatMap((e) => leadNote(e) ?? []);
 
 describe('adding notes', () => {
   it('tap fret → pick finger → note is added after the cursor', () => {
@@ -14,14 +19,14 @@ describe('adding notes', () => {
     expect(s.mode).toEqual({ type: 'picking', s: 2, f: 5, replace: false });
     s = run(s, { type: 'CHOOSE_FINGER', finger: '1' });
     expect(s.mode.type).toBe('adding');
-    expect(sheet(s).events[0].notes[0]).toEqual({ s: 2, f: 5, finger: '1' });
+    expect(lead(s, 0)).toEqual({ s: 2, f: 5, finger: '1' });
     expect(sheet(s).cursor).toBe(0);
   });
 
   it('open strings skip the finger picker', () => {
     const s = run(blank(), { type: 'TAP_FRET', s: 0, f: 0 });
     expect(s.mode.type).toBe('adding');
-    expect(sheet(s).events[0].notes[0].finger).toBe('0');
+    expect(lead(s, 0)?.finger).toBe('0');
   });
 
   it('cancel leaves the sheet unchanged', () => {
@@ -58,7 +63,7 @@ describe('editing a placed note', () => {
 
   it('changes only the finger', () => {
     const s = run(twoNotes(), { type: 'SELECT_COLUMN', i: 0 }, { type: 'SET_FINGER', finger: '2' });
-    expect(sheet(s).events[0].notes[0]).toEqual({ s: 2, f: 5, finger: '2' });
+    expect(lead(s, 0)).toEqual({ s: 2, f: 5, finger: '2' });
     expect(sheet(s).events).toHaveLength(2);
   });
 
@@ -70,7 +75,7 @@ describe('editing a placed note', () => {
       { type: 'CHOOSE_FINGER', finger: '2' },
     );
     expect(sheet(s).events).toHaveLength(2);
-    expect(sheet(s).events[0].notes[0]).toEqual({ s: 1, f: 3, finger: '2' });
+    expect(lead(s, 0)).toEqual({ s: 1, f: 3, finger: '2' });
   });
 
   it('undo restores the previous sheet', () => {
@@ -95,15 +100,14 @@ describe('fingering mode', () => {
 
   it('shifting the hand keeps pitches and re-fingers', () => {
     const start = runSheet();
-    const pitches = sheet(start).events.map((e) => midiOf(e.notes[0]));
     const s = run(start, { type: 'ENTER_FINGERING' }, { type: 'SELECT_COLUMN', i: 3 }, { type: 'SHIFT_HAND', d: 4 });
-    expect(sheet(s).events.map((e) => midiOf(e.notes[0]))).toEqual(pitches);
-    expect(sheet(s).events.every((e) => e.notes[0].finger !== '')).toBe(true);
+    expect(leads(s).map(midiOf)).toEqual(leads(start).map(midiOf));
+    expect(leads(s).every((n) => n.finger !== '')).toBe(true);
   });
 
   it('setting a finger walks to the next note', () => {
     const s = run(runSheet(), { type: 'ENTER_FINGERING' }, { type: 'SET_FINGER', finger: '2' });
-    expect(sheet(s).events[0].notes[0].finger).toBe('2');
+    expect(lead(s, 0)?.finger).toBe('2');
     expect(s.mode).toMatchObject({ a: 1, b: 1 });
   });
 
@@ -123,10 +127,11 @@ describe('storage', () => {
       click: true,
     });
     const saved = parseSaved(legacy);
-    expect(saved.currentId).toBe('a');
-    expect(saved.settings.loop).toBe(false);
-    expect(saved.sheets[0].events[0].kind).toBe('rest');
-    expect(saved.sheets[0].bpm).toBe(80);
+    expect(saved).not.toBeNull();
+    expect(saved?.currentId).toBe('a');
+    expect(saved?.settings?.loop).toBe(false);
+    expect(saved?.sheets[0]?.events[0]?.kind).toBe('rest');
+    expect(saved?.sheets[0]?.bpm).toBe(80);
   });
 
   it('returns null for missing or broken data', () => {

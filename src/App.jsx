@@ -8,10 +8,10 @@ import Staff from './components/Staff.jsx';
 import Transport from './components/Transport.jsx';
 import { leadNote } from './music/tab.ts';
 import { midiAt, midiOf } from './music/theory.ts';
-import { accepts, createEditorState, currentSheet, editorReducer } from './state/editor.js';
-import { keyToAction } from './state/keymap.js';
-import { loadSaved, save } from './state/storage.js';
-import { fretboardView, staffView } from './state/views.js';
+import { accepts, createEditorState, currentSheet, editorReducer } from './state/editor.ts';
+import { keyToAction } from './state/keymap.ts';
+import { loadSaved, save } from './state/storage.ts';
+import { fretboardView, staffView } from './state/views.ts';
 import './styles.css';
 
 export default function App() {
