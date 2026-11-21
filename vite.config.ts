@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vitest/config';
 
 // base './' keeps asset paths relative, so the build also works from a GitHub Pages subpath.
 export default defineConfig({
@@ -7,6 +7,6 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'node',
-    include: ['src/**/*.test.{js,jsx}'],
+    include: ['src/**/*.test.{js,jsx,ts,tsx}'],
   },
 });
