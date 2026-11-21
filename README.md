@@ -8,8 +8,9 @@ Write guitar practice tab by tapping the fretboard and choosing the finger you u
 npm install
 npm run dev      # http://localhost:5173
 npm test         # Vitest
+npm run typecheck
 npm run lint
-npm run build    # static site in dist/
+npm run build    # type-checks, then builds the static site in dist/
 ```
 
 ## Using it
@@ -23,29 +24,32 @@ npm run build    # static site in dist/
 
 ## How the code is organised
 
+React 19 + TypeScript (strict, with `noUncheckedIndexedAccess`) + Vite.
+
 ```
 src/
   music/        pure domain logic, no React
-    theory.js     tuning, note names, modes, scales
-    fingering.js  hand position, fit a run, same-pitch alternatives
-    tab.js        sheet and column model
-    ascii.js      plain-text export
+    types.ts      Note, Finger, Column (notes | rest | bar), Sheet, Key
+    theory.ts     tuning, note names, modes, scales
+    fingering.ts  hand position, fit a run, same-pitch alternatives
+    tab.ts        sheet and column helpers
+    ascii.ts      plain-text export
   audio/
-    synth.js      Web Audio guitar voice (Karplus-Strong + body EQ + room)
-    player.js     look-ahead playback scheduler
-    usePlayback.js  the one hook that connects them to React
+    synth.ts      Web Audio guitar voice (Karplus-Strong + body EQ + room)
+    player.ts     look-ahead playback scheduler
+    usePlayback.ts  the one hook that connects them to React
   state/
-    editor.js     the editor state machine (useReducer)
-    views.js      view models for the staff and fretboard
-    keymap.js     keyboard shortcuts per mode
-    storage.js    localStorage, reads the prototype's format
-  components/   presentational React components
+    editor.ts     the editor state machine (useReducer); Mode and Action unions
+    views.ts      view models for the staff and fretboard
+    keymap.ts     keyboard shortcuts per mode
+    storage.ts    localStorage, reads the prototype's format
+  components/   presentational React components (.tsx)
 prototype/      the original single-file version, kept for reference
 ```
 
 ### Editor modes
 
-The editor is a reducer with explicit modes. Each mode lists the actions it accepts; anything else is ignored.
+The editor is a reducer with explicit modes. `Mode` and `Action` are discriminated unions, and each mode's handler table is typed against that mode, so handlers get narrowed state. Each mode lists the actions it accepts; anything else is ignored.
 
 ```mermaid
 stateDiagram-v2
