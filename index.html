@@ -1,0 +1,788 @@
+<title>Fretpad</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one-screen instrument — tab sheet scrolls on top, control strip, rosewood fretboard docked at the bottom (high e on top, same as tab). */
+:root{
+  --paper:#EEF2F3; --sheet:#FBFCFC; --ink:#172126; --muted:#5B6A71; --line:#B4C1C7;
+  --accent:#2450C8; --accent-ink:#FFFFFF; --sel:#DCE5FB; --play:#FBE3A4; --warn:#C23A2B;
+  --wood:#3A261D; --wood-2:#2E1E17; --fretwire:#C9CDD0; --nut:#ECE5D2; --string:#D9D4C7; --inlay:#E9E4D8;
+  --f1:#2563C2; --f2:#23845A; --f3:#C2581C; --f4:#9C3A8E; --fT:#56626A; --f0:#5B6A71;
+  --display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --body:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --paper:#101517; --sheet:#171E21; --ink:#E4EBEE; --muted:#93A2A9; --line:#3B474D;
+  --accent:#86A3FF; --accent-ink:#0D1530; --sel:#22304F; --play:#4A3A12; --warn:#FF8F80;
+  --f1:#78A8F5; --f2:#5CC796; --f3:#F29A5E; --f4:#DB86CD; --fT:#A5B0B6; --f0:#93A2A9;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --paper:#101517; --sheet:#171E21; --ink:#E4EBEE; --muted:#93A2A9; --line:#3B474D;
+  --accent:#86A3FF; --accent-ink:#0D1530; --sel:#22304F; --play:#4A3A12; --warn:#FF8F80;
+  --f1:#78A8F5; --f2:#5CC796; --f3:#F29A5E; --f4:#DB86CD; --fT:#A5B0B6; --f0:#93A2A9;
+}
+html,body{height:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;}
+*{box-sizing:border-box}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.app{height:100%;display:grid;grid-template-rows:auto auto 1fr auto auto;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  max-width:1100px;margin:0 auto;}
+
+/* header */
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:14px 10px}
+.brand{font-family:var(--display);font-weight:800;font-stretch:118%;letter-spacing:-.01em;font-size:20px;margin:0}
+.brand span{color:var(--accent)}
+#title{flex:1 1 180px;min-width:0;border:0;border-bottom:1.5px solid var(--line);background:transparent;padding:6px 2px;font-weight:600;font-size:16px}
+#title:focus{border-color:var(--accent);outline:none}
+.hgroup{display:flex;gap:8px;align-items:center}
+select,.btn{border:1.5px solid var(--line);background:var(--sheet);border-radius:8px;padding:7px 11px;font-size:14px;font-weight:600}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.4;cursor:default}
+
+/* transport */
+.transport{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding-block:0 12px}
+.playbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:96px}
+.playbtn svg{width:12px;height:12px;fill:currentColor}
+.tempo{display:flex;align-items:center;gap:4px}
+.tempo label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.08em}
+#bpm{width:3.6em;text-align:center;border:1.5px solid var(--line);border-radius:8px;padding:7px 2px;background:var(--sheet);font-family:var(--mono);font-weight:700;font-size:14px}
+.btn.sq{width:36px;padding-inline:0}
+.btn.toggle[aria-pressed="true"]{background:var(--sel);border-color:var(--accent);color:var(--accent)}
+.keyctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.keyctl select:disabled{opacity:.45}
+.num.ook{text-decoration:underline wavy var(--warn);text-decoration-thickness:1.5px;text-underline-offset:4px}
+.warn{color:var(--warn);font-weight:700}
+.sdot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.28);pointer-events:none}
+.sdot.root{background:transparent;border:2px solid rgba(255,255,255,.7);width:11px;height:11px}
+.sdot.big{width:20px;height:20px;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;color:rgba(255,255,255,.9);background:rgba(255,255,255,.16)}
+.sdot.big.root{border:2px solid rgba(255,255,255,.75);width:22px;height:22px}
+.fret.open .sdot{background:var(--line)}
+.fret.open .sdot.root{background:transparent;border-color:var(--muted)}
+
+/* tab sheet */
+.sheetwrap{overflow:auto;background:var(--sheet);border:1.5px solid var(--line);border-radius:10px;padding:18px 16px 22px;min-height:0}
+.staff{display:flex;flex-wrap:wrap;row-gap:26px;align-items:stretch}
+.col{display:flex;flex-direction:column;min-width:30px;position:relative;--colbg:var(--sheet);background:var(--colbg);border:0;padding:0;}
+.col.notes,.col.gap{cursor:pointer}
+.col.sel{--colbg:var(--sel)}
+.col.rsel{--colbg:var(--sel)}
+.col.play{--colbg:var(--play)}
+.col.editing{box-shadow:inset 0 0 0 2px var(--accent);border-radius:5px}
+.col.editing::after{display:none}
+.col.sel::after,.labels.sel::after{content:"";position:absolute;right:-1px;top:-6px;bottom:-6px;width:2px;background:var(--accent);border-radius:2px}
+.cell{height:24px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(to bottom,transparent calc(50% - .5px),var(--line) calc(50% - .5px),var(--line) calc(50% + .5px),transparent calc(50% + .5px));}
+.num{font-family:var(--mono);font-weight:700;font-size:15px;line-height:1;background:var(--colbg);padding:0 3px;display:inline-flex;align-items:baseline;font-variant-numeric:tabular-nums}
+.num sub{font-size:9.5px;font-weight:700;margin-left:1px;vertical-align:baseline;transform:translateY(3px)}
+.labels{min-width:22px;padding-right:6px;cursor:pointer}
+.labels .cell{background:none;justify-content:flex-start;font-family:var(--mono);font-size:13px;color:var(--muted);font-weight:700}
+.col.bar{min-width:10px;cursor:pointer}
+.col.bar .cell{position:relative}
+.col.bar .cell::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:var(--ink);transform:translateX(-50%)}
+.col.bar .cell:first-child::before{top:50%}
+.col.bar .cell:last-child::before{bottom:50%}
+.empty{color:var(--muted);font-size:14px;padding:8px 0 0 4px;max-width:40ch;line-height:1.5}
+[data-f="1"]{color:var(--f1)} [data-f="2"]{color:var(--f2)} [data-f="3"]{color:var(--f3)} [data-f="4"]{color:var(--f4)} [data-f="T"]{color:var(--fT)} [data-f="0"],[data-f=""]{color:var(--ink)}
+
+/* control strip */
+.strip{min-height:64px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-block:10px}
+.strip .hint{color:var(--muted);font-size:13px;margin-right:auto}
+.strip .hint b{color:var(--ink)}
+.picker{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
+.picker .what{font-weight:700;margin-right:auto;font-size:14px;line-height:1.25}
+.picker .what small{display:block;font-weight:500;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.fbtn{width:48px;height:48px;border-radius:50%;border:2px solid currentColor;background:var(--sheet);font-family:var(--mono);font-weight:700;font-size:18px;display:grid;place-items:center;}
+.fbtn:hover{background:var(--sel)}
+.fbtn.cur{box-shadow:0 0 0 3px var(--paper),0 0 0 5px currentColor}
+.fbtn.none{font-size:13px;color:var(--muted);border-style:dashed}
+.cancel{border:0;background:none;color:var(--muted);font-weight:600;padding:8px}
+
+/* fingering mode */
+.app.fxmode .sheetwrap{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.fx{display:flex;flex-direction:column;gap:10px;width:100%}
+.fxrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.fxrow .what{margin-right:auto;font-weight:700;font-size:14px;line-height:1.25}
+.fxrow .what small{display:block;font-weight:700;color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.posctl{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:3px;background:var(--sheet)}
+.posctl button{width:34px;height:34px;border-radius:50%;border:0;background:var(--sel);color:var(--accent);font-weight:800;font-size:17px}
+.posctl span{font-size:13px;font-weight:600;padding-inline:4px;white-space:nowrap}
+.posctl b{font-family:var(--mono)}
+.fxhelp{font-size:12.5px;color:var(--muted);line-height:1.45;max-width:70ch}
+
+/* fretboard */
+.boardwrap{overflow-x:auto;padding-bottom:max(12px,env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}
+.board{display:grid;grid-template-columns:44px repeat(15,minmax(54px,1fr));grid-template-rows:repeat(6,40px) 22px;min-width:max-content;position:relative}
+.board .wood{grid-column:2/-1;grid-row:1/7;background:linear-gradient(180deg,var(--wood),var(--wood-2));border-radius:0 6px 6px 0}
+.board .nutbar{grid-column:1;grid-row:1/7;justify-self:end;width:7px;background:var(--nut);border-radius:2px;z-index:1}
+.inlay{grid-row:1/7;align-self:center;justify-self:center;width:12px;height:12px;border-radius:50%;background:var(--inlay);opacity:.85;pointer-events:none}
+.inlay.dbl{align-self:stretch;height:auto;width:12px;background:none;display:flex;flex-direction:column;justify-content:space-around;padding-block:46px}
+.inlay.dbl::before,.inlay.dbl::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--inlay)}
+.fret{position:relative;border:0;background:transparent;padding:0;z-index:2;border-right:3px solid var(--fretwire)}
+.fret.open{border-right:0}
+.fret::before{content:"";position:absolute;left:0;right:-3px;top:50%;height:var(--sw,1.5px);transform:translateY(-50%);background:var(--string);box-shadow:0 1px 1px rgba(0,0,0,.35)}
+.fret.open::before{background:var(--line);box-shadow:none}
+.fret:hover::after{content:"";position:absolute;inset:6px;border-radius:8px;background:rgba(255,255,255,.12)}
+.fret.open:hover::after{background:var(--sel)}
+.dot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-weight:700;font-size:13px;color:#fff;z-index:3;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.dot.f1{background:var(--f1)} .dot.f2{background:var(--f2)} .dot.f3{background:var(--f3)} .dot.f4{background:var(--f4)} .dot.fT{background:var(--fT)} .dot.f0,.dot.f{background:var(--accent);color:var(--accent-ink)}
+.fret.open .dot{background:transparent;border:2.5px solid var(--accent);color:var(--accent);box-shadow:none}
+.dot.pending{background:transparent;border:2.5px dashed #fff;animation:pulse 1s ease-in-out infinite}
+.fret.open .dot.pending{border-color:var(--accent)}
+.dot.ghost{width:26px;height:26px;background:transparent;border:2px dashed rgba(255,255,255,.85);box-shadow:none;font-size:12px}
+.dot.ghost.best{border-style:solid;background:rgba(255,255,255,.2)}
+.fret.open .dot.ghost{border:2px dashed var(--accent)}
+.handbox{grid-row:1/7;margin:2px 0;border:2px dashed rgba(255,255,255,.45);background:rgba(255,255,255,.07);border-radius:8px;pointer-events:none;z-index:1}
+.fnum.inbox{color:var(--accent);font-weight:700}
+@keyframes pulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
+@media (prefers-reduced-motion: reduce){.dot.pending{animation:none}}
+.slabel{position:absolute;left:4px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted);pointer-events:none}
+.fnum{grid-row:7;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);align-self:end;font-variant-numeric:tabular-nums}
+
+/* export sheet */
+.overlay{position:fixed;inset:0;background:rgba(10,15,18,.45);display:grid;place-items:end center;z-index:20;padding:16px}
+.panel{background:var(--sheet);border-radius:14px;width:min(720px,100%);padding:18px;display:flex;flex-direction:column;gap:12px;max-height:90%;overflow:auto;margin-bottom:env(safe-area-inset-bottom,0px)}
+.panel h2{margin:0;font-family:var(--display);font-stretch:112%;font-size:18px}
+.panel p{margin:0;color:var(--muted);font-size:13px}
+#ascii{width:100%;min-height:220px;font-family:var(--mono);font-size:13px;line-height:1.35;border:1.5px solid var(--line);border-radius:8px;padding:10px;background:var(--paper);white-space:pre;overflow:auto;resize:vertical}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row .spacer{flex:1}
+.danger{color:#C23A2B;border-color:currentColor}
+.toast{font-size:13px;color:var(--muted)}
+@media (max-width:520px){.brand{font-size:18px}.fbtn{width:44px;height:44px}}
+</style>
+
+<div class="app" id="app">
+  <header>
+    <h1 class="brand">Fret<span>pad</span></h1>
+    <input id="title" aria-label="Sheet title" maxlength="80">
+    <div class="hgroup">
+      <select id="sheetSel" aria-label="Choose a sheet"></select>
+      <button class="btn" id="exportBtn">Export</button>
+    </div>
+  </header>
+
+  <div class="transport">
+    <button class="btn primary playbtn" id="playBtn"></button>
+    <div class="tempo">
+      <button class="btn sq" id="bpmDown" aria-label="Slower">−</button>
+      <label for="bpm"><input id="bpm" type="number" min="30" max="260" inputmode="numeric">BPM</label>
+      <button class="btn sq" id="bpmUp" aria-label="Faster">+</button>
+    </div>
+    <select id="div" aria-label="Note value of each column">
+      <option value="4">Each column = ♩ quarter</option>
+      <option value="8">Each column = ♪ eighth</option>
+      <option value="16">Each column = 16th</option>
+    </select>
+    <button class="btn toggle" id="loopBtn">Loop</button>
+    <button class="btn toggle" id="clickBtn">Click</button>
+    <div class="keyctl" role="group" aria-label="Key">
+      <select id="keyRoot" aria-label="Key root"></select>
+      <select id="keyMode" aria-label="Mode"></select>
+      <button class="btn toggle" id="scaleBtn" title="Show the scale on the fretboard">Scale</button>
+    </div>
+  </div>
+
+  <div class="sheetwrap" id="sheetwrap"><div class="staff" id="staff"></div></div>
+
+  <div class="strip" id="strip"></div>
+
+  <div class="boardwrap"><div class="board" id="board"></div></div>
+</div>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="panel" role="dialog" aria-labelledby="expTitle">
+    <h2 id="expTitle">Plain-text tab</h2>
+    <p>Small numbers in brackets under the staff are fingers: 1 index, 2 middle, 3 ring, 4 pinky, T thumb.</p>
+    <textarea id="ascii" readonly spellcheck="false"></textarea>
+    <div class="row">
+      <button class="btn primary" id="copyBtn">Copy text</button>
+      <span class="toast" id="copyMsg"></span>
+      <span class="spacer"></span>
+      <button class="btn danger" id="delSheet">Delete sheet</button>
+      <button class="btn" id="closeExp">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const TUNING=[{l:'e',m:64},{l:'B',m:59},{l:'G',m:55},{l:'D',m:50},{l:'A',m:45},{l:'E',m:40}]; // index 0 = high e
+const NAMES=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const FRETS=15;
+const FINGERS=[{k:'1',n:'Index'},{k:'2',n:'Middle'},{k:'3',n:'Ring'},{k:'4',n:'Pinky'},{k:'T',n:'Thumb'}];
+const KEY='fretpad.v1';
+/* keys: a root (pitch class) plus a mode; modes 1-7 are rotations of the major scale */
+const ROOTS=['C','C♯/D♭','D','D♯/E♭','E','F','F♯/G♭','G','G♯/A♭','A','A♯/B♭','B'];
+const MAJOR=[0,2,4,5,7,9,11];
+const MODES=[
+  ...['Ionian (major)','Dorian','Phrygian','Lydian','Mixolydian','Aeolian (minor)','Locrian']
+    .map((n,i)=>({name:`${i+1} · ${n}`,short:n,steps:MAJOR.map((_,k)=>(MAJOR[(i+k)%7]-MAJOR[i]+12)%12)})),
+  {name:'Major pentatonic',short:'major pentatonic',steps:[0,2,4,7,9]},
+  {name:'Minor pentatonic',short:'minor pentatonic',steps:[0,3,5,7,10]},
+];
+const scaleSet=sh=>sh.key?new Set(MODES[sh.key.mode].steps.map(x=>(x+sh.key.root)%12)):null;
+const keyName=sh=>sh.key?`${ROOTS[sh.key.root].split('/')[0]} ${MODES[sh.key.mode].short}`:'';
+const uid=()=>Math.random().toString(36).slice(2,9);
+const noteName=(s,f)=>{const m=TUNING[s].m+f;return NAMES[m%12]+(Math.floor(m/12)-1)};
+
+/* Event model, built to grow: a column holds an array of notes (chords later), or is a bar line or a rest. */
+const N=(s,f,finger)=>({id:uid(),kind:'notes',notes:[{s,f,finger}]});
+function sampleSheet(){
+  const ev=[];
+  [[5,'E'],[4,'A']].forEach(([s])=>{for(let f=1;f<=4;f++)ev.push(N(s,f,String(f)))});
+  ev.push({id:uid(),kind:'bar'});
+  [3,2].forEach(s=>{for(let f=1;f<=4;f++)ev.push(N(s,f,String(f)))});
+  ev.push({id:uid(),kind:'bar'});
+  [1,0].forEach(s=>{for(let f=1;f<=4;f++)ev.push(N(s,f,String(f)))});
+  ev.push({id:uid(),kind:'bar'});
+  return {id:uid(),title:'Example: 1-2-3-4 chromatic warm-up',events:ev,cursor:ev.length-1};
+}
+
+let store;
+try{store=JSON.parse(localStorage.getItem(KEY)||'null')}catch(e){store=null}
+if(!store||!store.sheets||!store.sheets.length){const s=sampleSheet();store={sheets:[s],current:s.id}}
+if(store.loop===undefined)store.loop=true;
+if(store.click===undefined)store.click=true;
+if(store.showScale===undefined)store.showScale=true;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(store))}catch(e){}};
+const sheet=()=>{const s=store.sheets.find(s=>s.id===store.current)||store.sheets[0];s.bpm=s.bpm||80;s.div=s.div||8;return s};
+
+/* ---------- audio: Karplus-Strong plucked string ---------- */
+let ctx=null,master=null;const bufCache={};
+function audio(){
+  if(!ctx){
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    master=ctx.createGain();master.gain.value=.75;
+    // guitar body: a wooden box resonates at a few low frequencies (air ~100 Hz, top plate ~200 Hz)
+    // plus a little presence where the pick lives; then a gentle top-end roll-off
+    const eq=(type,f,q,g)=>{const b=ctx.createBiquadFilter();b.type=type;b.frequency.value=f;b.Q.value=q;b.gain.value=g;return b};
+    const chain=[eq('peaking',105,1.4,5),eq('peaking',210,1.6,3.5),eq('peaking',420,2,1.5),eq('peaking',2600,1,2),eq('lowpass',4200,.6,0)];
+    master.connect(chain[0]);for(let i=1;i<chain.length;i++)chain[i-1].connect(chain[i]);
+    const out=chain[chain.length-1],comp=ctx.createDynamicsCompressor();out.connect(comp);comp.connect(ctx.destination);
+    // small room: a short decaying-noise impulse, mixed in quietly so notes sit in a space instead of a void
+    const len=Math.floor(ctx.sampleRate*.7),ir=ctx.createBuffer(2,len,ctx.sampleRate);
+    for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,3)}
+    const verb=ctx.createConvolver();verb.buffer=ir;const wet=ctx.createGain();wet.gain.value=.12;
+    out.connect(verb);verb.connect(wet);wet.connect(comp);
+  }
+  if(ctx.state==='suspended')ctx.resume();
+  return ctx;
+}
+function ksBuffer(m){
+  if(bufCache[m])return bufCache[m];
+  const sr=ctx.sampleRate,f=440*Math.pow(2,(m-69)/12),N=Math.max(2,Math.floor(sr/f)),len=Math.floor(sr*2.5);
+  const buf=ctx.createBuffer(1,len,sr),d=buf.getChannelData(0);
+  // excitation: a smooth plucked-string shape (rounded triangle) with only a little noise, so the onset is soft
+  const ex=new Float32Array(N),pos=.3;
+  for(let i=0;i<N;i++){const x=i/N;ex[i]=(x<pos?x/pos:(1-x)/(1-pos))-.5+(Math.random()*2-1)*.16}
+  for(let pass=0;pass<2;pass++){let p=ex[0];for(let i=0;i<N;i++){p=p*.5+ex[i]*.5;ex[i]=p}} // smooth away sharp corners
+  for(let i=0;i<N;i++)d[i]=ex[i]*.9;
+  const k=.4975;for(let i=N;i<len;i++)d[i]=k*(d[i-N]+d[i-N+1]);
+  // the loop above tunes to sr/(N+0.5); playbackRate corrects the remainder so every fret is in tune
+  return bufCache[m]={buf,rate:f/(sr/(N+.5))};
+}
+function pluck(m,t,dur){
+  const {buf,rate}=ksBuffer(m),s=ctx.createBufferSource(),g=ctx.createGain();
+  s.buffer=buf;s.playbackRate.value=rate;
+  // short fade-in (about 5 ms): keeps a pick edge without the scratch
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.75,t+.005);
+  g.gain.setValueAtTime(.75,t+dur);g.gain.exponentialRampToValueAtTime(.001,t+dur+.08);
+  s.connect(g);g.connect(master);s.start(t);s.stop(t+dur+.1);
+  // body layer: a soft rounded tone at the same pitch, blended under the pluck for warmth
+  const f=440*Math.pow(2,(m-69)/12),o1=ctx.createOscillator(),o2=ctx.createOscillator(),bg=ctx.createGain();
+  o1.type='sine';o1.frequency.value=f;o2.type='triangle';o2.frequency.value=f*2;
+  const o2g=ctx.createGain();o2g.gain.value=.25;o2.connect(o2g);o2g.connect(bg);o1.connect(bg);
+  const ring=Math.min(dur,1.4);
+  bg.gain.setValueAtTime(0,t);bg.gain.linearRampToValueAtTime(.2,t+.018);
+  bg.gain.exponentialRampToValueAtTime(.04,t+ring*.6);bg.gain.setValueAtTime(.04,t+dur);bg.gain.exponentialRampToValueAtTime(.001,t+dur+.08);
+  bg.connect(master);[o1,o2].forEach(o=>{o.start(t);o.stop(t+dur+.1)});
+}
+function clickAt(t,accent){
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.frequency.value=accent?1320:880;o.type='sine';
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(accent?.22:.13,t+.003);g.gain.exponentialRampToValueAtTime(.001,t+.06);
+  o.connect(g);g.connect(master);o.start(t);o.stop(t+.07);
+}
+const preview=(s,f)=>{audio();pluck(TUNING[s].m+f,ctx.currentTime+.01,.9)};
+
+/* ---------- playback scheduler (look-ahead, so timing holds even if the page is busy) ---------- */
+const play={on:false,i:0,next:0,step:0,timer:null,queue:[],cur:-1,ending:false};
+const stepLen=sh=>60/sh.bpm/(sh.div/4);
+const playable=ev=>ev.some(e=>e.kind!=='bar');
+function startPlay(range){
+  const sh=sheet();if(!playable(sh.events))return;
+  audio();pending=null;
+  Object.assign(play,{on:true,i:0,step:0,queue:[],cur:-1,ending:false,next:ctx.currentTime+.1,lo:0,hi:null});
+  // a range (fingering mode) plays and loops just those columns
+  if(range){play.i=range.a;play.lo=range.a;play.hi=range.b}
+  // otherwise start from the selected column if one is selected (and it isn't the last one)
+  else if(sh.cursor>=0&&sh.cursor<sh.events.length-1)play.i=sh.cursor;
+  play.timer=setInterval(schedule,25);schedule();requestAnimationFrame(tick);
+  renderTransport();renderStrip();
+}
+function stopPlay(){
+  if(!play.on)return;
+  play.on=false;clearInterval(play.timer);play.queue=[];play.cur=-1;
+  renderTransport();renderStaff();renderStrip();renderBoard();
+}
+function schedule(){
+  const sh=sheet(),ev=sh.events,len=stepLen(sh),per=sh.div/4;
+  while(play.on&&!play.ending&&play.next<ctx.currentTime+.12){
+    const hi=play.hi==null?ev.length-1:Math.min(play.hi,ev.length-1);
+    if(play.i>hi){
+      if(store.loop&&playable(ev.slice(play.lo,hi+1))){play.i=play.lo;play.step=0;continue}
+      play.queue.push({t:play.next,i:-2});play.ending=true;break;
+    }
+    const e=ev[play.i];
+    if(e.kind==='bar'){play.i++;play.step=0;continue}
+    if(store.click&&play.step%per===0)clickAt(play.next,play.step===0);
+    if(e.kind==='notes')e.notes.forEach(n=>pluck(TUNING[n.s].m+n.f,play.next,len*.97));
+    play.queue.push({t:play.next,i:play.i});
+    play.next+=len;play.i++;play.step++;
+  }
+}
+function tick(){
+  if(!play.on)return;
+  let changed=false;
+  while(play.queue.length&&play.queue[0].t<=ctx.currentTime){
+    const q=play.queue.shift();
+    if(q.i===-2){stopPlay();return}
+    play.cur=q.i;changed=true;
+  }
+  if(changed){
+    staffEl.querySelectorAll('.col.play').forEach(c=>c.classList.remove('play'));
+    const col=staffEl.querySelector(`.col[data-i="${play.cur}"]`);
+    if(col){col.classList.add('play');col.scrollIntoView({block:'nearest',inline:'nearest'})}
+    renderBoard();
+  }
+  requestAnimationFrame(tick);
+}
+
+let pending=null;          // {s,f,replace} waiting for a finger
+let editing=false;         // a placed note was tapped in the tab: the next fret tap replaces it
+let fx=null;               // fingering mode: {a,b} selected columns (inclusive), pos = fret under finger 1
+let history=[];            // undo snapshots for the current sheet
+const snap=()=>{const sh=sheet();history.push(JSON.stringify({e:sh.events,c:sh.cursor}));if(history.length>100)history.shift()};
+
+const $=id=>document.getElementById(id);
+const staffEl=$('staff'),stripEl=$('strip'),boardEl=$('board');
+
+/* ---------- editing ---------- */
+function insert(ev){const sh=sheet();editing=false;snap();sh.events.splice(sh.cursor+1,0,ev);sh.cursor++;commit(true)}
+function addNote(s,f,finger){insert(N(s,f,finger))}
+const canReplace=()=>{const c=sheet().events[sheet().cursor];return !!c&&(c.kind==='notes'||c.kind==='gap')};
+function replaceSelected(s,f,finger){
+  const sh=sheet(),old=sh.events[sh.cursor];snap();
+  sh.events[sh.cursor]={id:old.id,kind:'notes',notes:[{s,f,finger}]};editing=false;commit();
+}
+function setFinger(v){
+  const sh=sheet(),c=sh.events[sh.cursor];if(!c||c.kind!=='notes'||c.notes[0].f===0)return;
+  snap();c.notes[0].finger=v;editing=false;commit();
+}
+function nudgeFret(d){
+  const sh=sheet(),c=sh.events[sh.cursor];if(!c||c.kind!=='notes')return;
+  const n=c.notes[0],f=n.f+d;if(f<0||f>FRETS)return;
+  snap();n.f=f;if(f===0)n.finger='0';else if(n.finger==='0')n.finger='';
+  commit();preview(n.s,f);
+}
+function removeSelected(){const sh=sheet();if(sh.cursor<0)return;snap();sh.events.splice(sh.cursor,1);sh.cursor=Math.max(-1,sh.cursor-1);editing=false;commit()}
+function undo(){const h=history.pop();if(!h)return;const o=JSON.parse(h),sh=sheet();sh.events=o.e;sh.cursor=o.c;commit()}
+function moveCursor(d){const sh=sheet();sh.cursor=Math.max(-1,Math.min(sh.events.length-1,sh.cursor+d));pending=null;editing=false;render()}
+function commit(scroll){save();render();if(scroll)requestAnimationFrame(()=>{const el=staffEl.querySelector('.sel');el&&el.scrollIntoView({block:'nearest',inline:'nearest'})})}
+
+/* ---------- fingering mode: re-finger a run while keeping its pitches ---------- */
+const midiOf=n=>TUNING[n.s].m+n.f;
+const spotsFor=m=>TUNING.map((t,s)=>({s,f:m-t.m})).filter(p=>p.f>=0&&p.f<=FRETS);
+const fxIdx=()=>{const ev=sheet().events,r=[];for(let i=fx.a;i<=fx.b;i++)if(ev[i]&&ev[i].kind==='notes')r.push(i);return r};
+const fingerFor=(f,pos)=>f===0?'0':f<pos?'1':f>pos+3?'4':String(f-pos+1);  // one finger per fret
+const clampPos=p=>Math.max(1,Math.min(FRETS-3,p));
+function inferPos(idxs){
+  // guess the hand position from the fingers already written (fret - finger + 1), else the lowest fret
+  const ev=sheet().events,votes={};let minF=99;
+  idxs.forEach(i=>{const n=ev[i].notes[0];if(n.f>0){minF=Math.min(minF,n.f);const k=+n.finger;if(k>=1&&k<=4){const p=n.f-k+1;votes[p]=(votes[p]||0)+1}}});
+  const best=Object.entries(votes).sort((a,b)=>b[1]-a[1])[0];
+  return clampPos(best?+best[0]:(minF<99?minF:1));
+}
+function fitRun(pos){
+  // move every selected note to where its pitch falls under a hand at `pos`, then set fingers.
+  // Prefers frets inside the 4-fret box, then a one-fret stretch, then open strings, and few string jumps.
+  const ev=sheet().events,idxs=fxIdx();if(!idxs.length)return;
+  snap();fx.pos=clampPos(pos);pos=fx.pos;let prevS=null;
+  idxs.forEach(i=>{
+    const n=ev[i].notes[0],ref=prevS??n.s;let best=null,bc=1e9;
+    spotsFor(midiOf(n)).forEach(p=>{
+      let c=p.f===0?1.5:(p.f>=pos&&p.f<=pos+3)?0:(p.f===pos-1||p.f===pos+4)?2:10+Math.min(Math.abs(p.f-pos),Math.abs(p.f-pos-3));
+      c+=.15*Math.abs(p.s-ref);
+      if(c<bc){bc=c;best=p}
+    });
+    if(best){n.s=best.s;n.f=best.f;n.finger=fingerFor(best.f,pos)}
+    prevS=n.s;
+  });
+  commit();
+}
+function enterFx(){
+  const sh=sheet(),ev=sh.events;
+  let i=sh.cursor;if(!ev[i]||ev[i].kind!=='notes')i=ev.findIndex(e=>e.kind==='notes');
+  if(i<0)return;
+  stopPlay();pending=null;editing=false;fx={a:i,b:i,pos:1};fx.pos=inferPos([i]);render();
+}
+function exitFx(){if(!fx)return;stopPlay();sheet().cursor=fx.b;fx=null;render()}
+function fxSelect(i,extend){
+  const ev=sheet().events;if(!ev[i]||ev[i].kind!=='notes')return;
+  if(extend){fx.a=Math.min(fx.a,i);fx.b=Math.max(fx.b,i)}else{fx.a=fx.b=i}
+  fx.pos=inferPos(fxIdx());render();
+  if(!extend){const n=ev[i].notes[0];preview(n.s,n.f)}
+}
+function fxStep(d,extend){
+  const ev=sheet().events;let i=d>0?fx.b:fx.a;
+  do{i+=d}while(ev[i]&&ev[i].kind!=='notes');
+  if(!ev[i])return false;
+  if(extend){if(d>0)fx.b=i;else fx.a=i;fx.pos=inferPos(fxIdx());render()}else fxSelect(i,false);
+  return true;
+}
+function fxSetFinger(v){
+  if(fx.a!==fx.b)return;const n=sheet().events[fx.a].notes[0];if(n.f===0)return;
+  snap();n.finger=v;save();
+  if(!fxStep(1,false))render();   // walk forward so you can tap through a passage
+}
+function ghostInfo(i,p){
+  // For an alternative spot p of note i: find the hand position that holds p and also holds the most
+  // neighbouring notes (3 before, 3 after), so the suggestion fits the run rather than the note alone.
+  const sh=sheet(),ev=sh.events,sc=scaleSet(sh),nb=[];
+  for(let j=i-1,c=0;j>=0&&c<3;j--)if(ev[j].kind==='notes'){nb.push(ev[j].notes[0]);c++}
+  for(let j=i+1,c=0;j<ev.length&&c<3;j++)if(ev[j].kind==='notes'){nb.push(ev[j].notes[0]);c++}
+  let best=null;
+  for(let pos=clampPos(p.f-3);pos<=clampPos(Math.max(1,p.f));pos++){
+    let fit=0;nb.forEach(n=>{if(spotsFor(midiOf(n)).some(q=>q.f>=pos&&q.f<=pos+3))fit++});
+    // with a key set, slightly prefer boxes that hold more of the scale on fewer strings' worth of reach
+    let tones=0;if(sc)for(let s=0;s<6;s++)for(let f=pos;f<=pos+3;f++)if(sc.has((TUNING[s].m+f)%12))tones++;
+    const score=fit*10+tones*.1-Math.abs(pos-fx.pos)*.05;
+    if(!best||score>best.score)best={pos,score,fit};
+  }
+  return {pos:best.pos,fit:best.fit,score:best.score,finger:p.f===0?'0':fingerFor(p.f,best.pos)};
+}
+function fxTapFret(s,f){
+  const ev=sheet().events;
+  if(fx.a===fx.b){
+    const n=ev[fx.a].notes[0];
+    const samePitch=TUNING[s].m+f===midiOf(n)&&!(s===n.s&&f===n.f);
+    snap();
+    if(samePitch){const g=ghostInfo(fx.a,{s,f});fx.pos=g.pos;n.s=s;n.f=f;n.finger=g.finger}
+    else{n.s=s;n.f=f;n.finger=f===0?'0':(f>=fx.pos&&f<=fx.pos+3)?fingerFor(f,fx.pos):''}
+    commit();
+  }else if(f>0)fitRun(f);   // with a run selected, tapping a fret puts finger 1 there
+}
+
+/* ---------- rendering ---------- */
+function render(){$('app').classList.toggle('fxmode',!!fx);renderHeader();renderTransport();renderStaff();renderStrip();renderBoard()}
+
+function renderTransport(){
+  const sh=sheet();
+  $('playBtn').innerHTML=play.on
+    ?'<svg viewBox="0 0 12 12" aria-hidden="true"><rect x="1" y="1" width="10" height="10" rx="1.5"/></svg>Stop'
+    :'<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 1l9 5-9 5z"/></svg>Play';
+  $('playBtn').disabled=!playable(sh.events);
+  $('playBtn').title=play.on?'Stop (Space)':'Play (Space). Starts from the selected column.';
+  if(document.activeElement!==$('bpm'))$('bpm').value=sh.bpm;
+  $('div').value=String(sh.div);
+  $('loopBtn').setAttribute('aria-pressed',store.loop);
+  $('clickBtn').setAttribute('aria-pressed',store.click);
+  $('keyRoot').value=sh.key?String(sh.key.root):'';
+  $('keyMode').value=String(sh.key?sh.key.mode:0);
+  $('keyMode').disabled=!sh.key;
+  $('scaleBtn').disabled=!sh.key;
+  $('scaleBtn').setAttribute('aria-pressed',store.showScale);
+}
+
+function renderHeader(){
+  const sh=sheet();
+  if(document.activeElement!==$('title'))$('title').value=sh.title;
+  const sel=$('sheetSel');
+  sel.innerHTML=store.sheets.map(s=>`<option value="${s.id}">${esc(s.title||'Untitled')}</option>`).join('')+'<option value="__new">+ New sheet</option>';
+  sel.value=sh.id;
+}
+const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function renderStaff(){
+  const sh=sheet(),sc=scaleSet(sh);
+  let h=`<div class="col labels${sh.cursor===-1&&!fx?' sel':''}" data-i="-1" title="Insert at start">${TUNING.map(t=>`<div class="cell">${t.l}</div>`).join('')}</div>`;
+  sh.events.forEach((ev,i)=>{
+    const sel=(fx
+      ?(i>=fx.a&&i<=fx.b?' rsel':'')+(fx.a===fx.b&&i===fx.a?' editing':'')
+      :(i===sh.cursor?' sel':'')+(i===sh.cursor&&editing?' editing':''))
+      +(play.on&&i===play.cur?' play':'');
+    if(ev.kind==='bar'){h+=`<div class="col bar${sel}" data-i="${i}">${TUNING.map(()=>'<div class="cell"></div>').join('')}</div>`;return}
+    const cells=TUNING.map((_,s)=>{
+      const n=ev.kind==='notes'&&ev.notes.find(x=>x.s===s);
+      if(!n)return '<div class="cell"></div>';
+      const fg=n.finger&&n.finger!=='0'?`<sub>${n.finger}</sub>`:'';
+      const out=sc&&!sc.has(midiOf(n)%12);
+      return `<div class="cell"><span class="num${out?' ook':''}" data-f="${n.finger||''}"${out?` title="${noteName(n.s,n.f)} is outside ${keyName(sh)}"`:''}>${n.f}${fg}</span></div>`;
+    }).join('');
+    h+=`<div class="col ${ev.kind}${sel}" data-i="${i}">${cells}</div>`;
+  });
+  if(!sh.events.length)h+=`<div class="empty">Tap a fret below to add your first note, then pick the finger you use for it.</div>`;
+  staffEl.innerHTML=h;
+}
+
+function renderFx(sh){
+  const ev=sh.events,idxs=fxIdx(),single=fx.a===fx.b,sc=scaleSet(sh);
+  const all=ev.map((e,i)=>e.kind==='notes'?i:-1).filter(i=>i>=0);
+  const outside=sc?idxs.filter(i=>!sc.has(midiOf(ev[i].notes[0])%12)).length:0;
+  let what;
+  if(single){const n=ev[fx.a].notes[0];what=`Note ${all.indexOf(fx.a)+1} of ${all.length} · ${TUNING[n.s].l} string, fret ${n.f} · ${noteName(n.s,n.f)}${outside?` · <span class="warn">outside ${keyName(sh)}</span>`:''}`}
+  else what=`${idxs.length} notes selected${sc?` in ${keyName(sh)}`:''}${outside?` · <span class="warn">${outside} outside the key</span>`:''}`;
+  const help=single
+    ?`Tap another note in the tab to select a run. Rings on the fretboard are the same pitch on other strings, with the finger to use there; the solid ring fits the notes around it best. Tap one to move the note there.${sc?' Numbered dots inside the box are the scale under your hand.':''}`
+    :'Use − and + to slide the hand along the neck. The notes keep their pitch, change string and fret to stay under your hand, and get one finger per fret. You can also tap a fret to put your first finger there.';
+  let h=`<div class="fx"><div class="fxrow">
+    <div class="what"><small>Fingering mode</small>${what}</div>
+    <div class="posctl" role="group" aria-label="Hand position"><button data-fx="pos-" aria-label="Move hand down one fret">−</button><span>Finger 1 at fret <b>${fx.pos}</b></span><button data-fx="pos+" aria-label="Move hand up one fret">+</button></div>
+    <button class="btn" data-fx="fit" title="Move the selected notes under the hand and set fingers">Fit to hand</button>
+    <button class="btn" data-fx="play">${play.on?'Stop':'Play selection'}</button>
+    <button class="btn" data-fx="undo" ${history.length?'':'disabled'}>Undo</button>
+    <button class="btn primary" data-fx="done" title="Leave fingering mode (Esc)">Done</button></div>`;
+  if(single){
+    const n=ev[fx.a].notes[0];
+    h+=`<div class="fxrow"><button class="btn sq" data-fx="prev" aria-label="Previous note">‹</button>
+      ${n.f===0?'<span class="hint">Open string, no finger needed.</span>':FINGERS.map(x=>`<button class="fbtn${n.finger===x.k?' cur':''}" data-fxfinger="${x.k}" data-f="${x.k}" title="${x.n}${n.finger===x.k?' (current)':''}" aria-label="${x.n} finger">${x.k}</button>`).join('')}
+      <button class="btn sq" data-fx="next" aria-label="Next note">›</button>
+      <span class="hint">Picking a finger moves on to the next note.</span></div>`;
+  }
+  stripEl.innerHTML=h+`<div class="fxhelp">${help}</div></div>`;
+}
+
+function renderStrip(){
+  const sh=sheet();
+  if(fx){renderFx(sh);return}
+  if(pending){
+    const {s,f,replace}=pending;
+    const cur=replace&&sh.events[sh.cursor],had=cur&&cur.kind==='notes'?cur.notes[0].finger:null;
+    stripEl.innerHTML=`<div class="picker">
+      <div class="what"><small>${replace?'Change note to · which finger?':'Which finger?'}</small>${TUNING[s].l} string · fret ${f} · ${noteName(s,f)}</div>
+      ${FINGERS.map(x=>`<button class="fbtn${had===x.k?' cur':''}" data-finger="${x.k}" data-f="${x.k}" title="${x.n}${had===x.k?' (current)':''}" aria-label="${x.n} finger">${x.k}</button>`).join('')}
+      <button class="fbtn none" data-finger="" title="Leave fingering blank">none</button>
+      <button class="cancel" id="cancelPick">Cancel</button></div>`;
+    return;
+  }
+  const cur=sh.events[sh.cursor];
+  if(editing&&cur&&cur.kind==='notes'){
+    const n=cur.notes[0];
+    const fingers=n.f===0?'<span class="hint">Open string, no finger needed.</span>'
+      :FINGERS.map(x=>`<button class="fbtn${n.finger===x.k?' cur':''}" data-refinger="${x.k}" data-f="${x.k}" title="${x.n}${n.finger===x.k?' (current)':''}" aria-label="Change to ${x.n} finger">${x.k}</button>`).join('')
+       +`<button class="fbtn none${!n.finger?' cur':''}" data-refinger="" title="No fingering">none</button>`;
+    stripEl.innerHTML=`<div class="picker">
+      <div class="what"><small>Change finger, or tap a fret to move it</small>${TUNING[n.s].l} string · fret ${n.f} · ${noteName(n.s,n.f)}</div>
+      ${fingers}
+      <button class="btn" data-act="del" title="Delete this note (Backspace)">Delete</button>
+      <button class="btn" data-act="fx" title="Re-finger a run of notes (F)">Fingering mode</button>
+      <button class="btn primary" data-act="done" title="Stop editing and add new notes after this one (Esc)">Done</button></div>`;
+    return;
+  }
+  let desc='Tap a fret to add a note.';
+  const isEditing=editing&&canReplace();
+  const after=isEditing?'Tap a fret to change it.':'New notes go after it.';
+  if(cur&&cur.kind==='notes'){const n=cur.notes[0];desc=`Selected: <b>${TUNING[n.s].l} string, fret ${n.f}</b> (${noteName(n.s,n.f)})${n.finger&&n.finger!=='0'?`, finger ${n.finger}`:''}. ${after}`}
+  else if(cur&&cur.kind==='bar')desc='Selected: <b>bar line</b>. New notes go after it.';
+  else if(cur&&cur.kind==='gap')desc=`Selected: <b>rest</b>. ${after}`;
+  else if(sh.events.length)desc='Cursor is at the start. New notes go first.';
+  stripEl.innerHTML=`<div class="hint">${desc}</div>
+    ${isEditing?'<button class="btn primary" data-act="done" title="Stop editing and add new notes after this one (Esc)">Insert after</button>':''}
+    <button class="btn" data-act="fx" ${sh.events.some(e=>e.kind==='notes')?'':'disabled'} title="Re-finger a run of notes (F)">Fingering</button>
+    <button class="btn" data-act="gap" title="Add an empty beat (R)">Rest</button>
+    <button class="btn" data-act="bar" title="Add a bar line (B)">Bar |</button>
+    <button class="btn" data-act="del" ${sh.cursor<0?'disabled':''} title="Delete selected (Backspace)">Delete</button>
+    <button class="btn" data-act="undo" ${history.length?'':'disabled'} title="Undo (Ctrl/⌘ Z)">Undo</button>`;
+}
+
+function renderBoard(){
+  const sh=sheet();
+  let shown=[],ghosts=[];
+  if(play.on){const c=sh.events[play.cur];shown=c&&c.kind==='notes'?c.notes:[]}
+  else if(fx){
+    shown=fxIdx().map(i=>sh.events[i].notes[0]);
+    if(fx.a===fx.b&&shown[0]){
+      const n=shown[0];
+      ghosts=spotsFor(midiOf(n)).filter(p=>!(p.s===n.s&&p.f===n.f)).map(p=>({...p,...ghostInfo(fx.a,p)}));
+      const top=ghosts.reduce((b,g)=>!b||g.score>b.score?g:b,null);if(top)top.best=true;
+    }
+  }
+  else{const c=sh.events[sh.cursor];shown=c&&c.kind==='notes'?c.notes:[]}
+  const sc=store.showScale?scaleSet(sh):null;
+  let h='<div class="wood"></div><div class="nutbar"></div>';
+  if(fx)h+=`<div class="handbox" style="grid-column:${fx.pos+1} / span 4"></div>`;
+  [3,5,7,9,15].forEach(f=>h+=`<div class="inlay" style="grid-column:${f+1}"></div>`);
+  h+=`<div class="inlay dbl" style="grid-column:13"></div>`;
+  TUNING.forEach((t,s)=>{
+    for(let f=0;f<=FRETS;f++){
+      const on=shown.find(n=>n.s===s&&n.f===f);
+      const pend=pending&&pending.s===s&&pending.f===f;
+      let dot='';
+      if(pend)dot='<span class="dot pending"></span>';
+      else if(on)dot=`<span class="dot f${on.finger||''}">${on.finger&&on.finger!=='0'?on.finger:f===0?'0':''}</span>`;
+      else if(ghosts.some(p=>p.s===s&&p.f===f)){
+        const g=ghosts.find(p=>p.s===s&&p.f===f);
+        dot=`<span class="dot ghost${g.best?' best':''}" title="Finger ${g.finger==='0'?'open':g.finger}, hand at fret ${g.pos}">${g.finger==='0'?'':g.finger}</span>`;
+      }
+      else if(sc&&sc.has((t.m+f)%12)){
+        const root=(t.m+f)%12===sh.key.root,inBox=fx&&f>=fx.pos&&f<=fx.pos+3;
+        dot=inBox?`<span class="sdot big${root?' root':''}">${fingerFor(f,fx.pos)}</span>`:`<span class="sdot${root?' root':''}"></span>`;
+      }
+      const sw=(1.2+s*0.45).toFixed(2)+'px';
+      h+=`<button class="fret${f===0?' open':''}" style="grid-row:${s+1};grid-column:${f+1};--sw:${sw}" data-s="${s}" data-f="${f}" aria-label="${t.l} string ${f===0?'open':'fret '+f}, ${noteName(s,f)}">${f===0?`<span class="slabel">${t.l}</span>`:''}${dot}</button>`;
+    }
+  });
+  for(let f=0;f<=FRETS;f++)h+=`<div class="fnum${fx&&f>=fx.pos&&f<=fx.pos+3?' inbox':''}" style="grid-column:${f+1}">${f===0?'open':f}</div>`;
+  boardEl.innerHTML=h;
+}
+
+/* ---------- plain-text export ---------- */
+function toAscii(sh){
+  const lines=[];let chunk=[],w=0;
+  const colOf=ev=>{
+    if(ev.kind==='bar')return{w:1,str:TUNING.map(()=>'|'),fing:' '};
+    if(ev.kind==='gap')return{w:2,str:TUNING.map(()=>'--'),fing:'  '};
+    const width=Math.max(...ev.notes.map(n=>String(n.f).length));
+    const str=TUNING.map((_,s)=>{const n=ev.notes.find(x=>x.s===s);return (n?String(n.f):'').padEnd(width,'-')+'-'});
+    const n=ev.notes[0],fg=n.finger&&n.finger!=='0'?n.finger:'';
+    return{w:width+1,str,fing:fg.padEnd(width+1,' ')};
+  };
+  const flush=()=>{
+    if(!chunk.length)return;
+    TUNING.forEach((t,s)=>lines.push(t.l+'|-'+chunk.map(c=>c.str[s]).join('')+(chunk[chunk.length-1].str[s]==='|'?'':'|')));
+    const f='   '+chunk.map(c=>c.fing).join('');
+    if(f.trim())lines.push(f.replace(/\s+$/,''));
+    lines.push('');chunk=[];w=0;
+  };
+  sh.events.forEach(ev=>{const c=colOf(ev);chunk.push(c);w+=c.w;if(w>60&&ev.kind==='bar')flush();else if(w>72)flush()});
+  flush();
+  const head=[sh.title,sh.key?`Key: ${keyName(sh)}`:''].filter(Boolean).join('\n');
+  return (head?head+'\n\n':'')+lines.join('\n').trimEnd()+'\n';
+}
+
+/* ---------- input ---------- */
+boardEl.addEventListener('click',e=>{
+  const b=e.target.closest('.fret');if(!b)return;
+  const s=+b.dataset.s,f=+b.dataset.f;
+  preview(s,f);
+  if(fx){fxTapFret(s,f);return}
+  const replace=editing&&canReplace();
+  if(f===0){pending=null;replace?replaceSelected(s,0,'0'):addNote(s,0,'0');return}   // open strings need no finger
+  pending={s,f,replace};render();
+});
+stripEl.addEventListener('click',e=>{
+  const xf=e.target.closest('[data-fxfinger]');
+  if(xf){fxSetFinger(xf.dataset.fxfinger);return}
+  const fa=e.target.closest('[data-fx]');
+  if(fa){({'pos-':()=>fitRun(fx.pos-1),'pos+':()=>fitRun(fx.pos+1),fit:()=>fitRun(fx.pos),
+    play:()=>play.on?stopPlay():startPlay({a:fx.a,b:fx.b}),undo,done:exitFx,
+    prev:()=>fxStep(-1,false),next:()=>fxStep(1,false)})[fa.dataset.fx]();return}
+  const rf=e.target.closest('[data-refinger]');
+  if(rf){setFinger(rf.dataset.refinger);return}
+  const fb=e.target.closest('[data-finger]');
+  if(fb&&pending){const {s,f,replace}=pending;pending=null;replace?replaceSelected(s,f,fb.dataset.finger):addNote(s,f,fb.dataset.finger);return}
+  if(e.target.id==='cancelPick'){pending=null;render();return}
+  const a=e.target.closest('[data-act]');if(!a)return;
+  ({fx:enterFx,done:()=>{editing=false;render()},gap:()=>insert({id:uid(),kind:'gap'}),bar:()=>insert({id:uid(),kind:'bar'}),del:removeSelected,undo})[a.dataset.act]();
+});
+staffEl.addEventListener('click',e=>{
+  const c=e.target.closest('.col');if(!c)return;
+  const i=+c.dataset.i,sh=sheet();
+  if(fx){
+    // like a date-range picker: with one note selected, tapping another selects the run between them
+    if(sh.events[i]&&sh.events[i].kind==='notes')fxSelect(i,e.shiftKey||(fx.a===fx.b&&i!==fx.a));
+    return;
+  }
+  // tapping a placed note (or rest) marks it for editing; tapping it again goes back to adding after it
+  const ev=sh.events[i],editable=!!ev&&(ev.kind==='notes'||ev.kind==='gap');
+  editing=editable&&!(editing&&sh.cursor===i);
+  sh.cursor=i;pending=null;render();
+  if(editing&&ev.kind==='notes')preview(ev.notes[0].s,ev.notes[0].f);
+});
+$('title').addEventListener('input',e=>{sheet().title=e.target.value;save();renderHeader()});
+$('sheetSel').addEventListener('change',e=>{
+  if(e.target.value==='__new'){const s={id:uid(),title:'Untitled practice',events:[],cursor:-1};store.sheets.unshift(s);store.current=s.id}
+  else store.current=e.target.value;
+  stopPlay();editing=false;fx=null;history=[];pending=null;save();render();
+  if(e.target.value==='__new'||sheet().title==='Untitled practice'){$('title').focus();$('title').select()}
+});
+let delArmed=false;
+$('exportBtn').addEventListener('click',()=>{$('ascii').value=toAscii(sheet());$('copyMsg').textContent='';delArmed=false;$('delSheet').textContent='Delete sheet';$('overlay').hidden=false});
+$('closeExp').addEventListener('click',()=>$('overlay').hidden=true);
+$('overlay').addEventListener('click',e=>{if(e.target.id==='overlay')$('overlay').hidden=true});
+$('copyBtn').addEventListener('click',async()=>{
+  const ta=$('ascii');
+  try{await navigator.clipboard.writeText(ta.value);$('copyMsg').textContent='Copied.'}
+  catch(err){ta.focus();ta.select();$('copyMsg').textContent='Text selected. Press Ctrl/⌘ C to copy.'}
+});
+$('delSheet').addEventListener('click',()=>{
+  if(!delArmed){delArmed=true;$('delSheet').textContent='Tap again to delete';return}
+  stopPlay();fx=null;
+  store.sheets=store.sheets.filter(s=>s.id!==store.current);
+  if(!store.sheets.length)store.sheets=[{id:uid(),title:'Untitled practice',events:[],cursor:-1}];
+  store.current=store.sheets[0].id;history=[];save();$('overlay').hidden=true;render();
+});
+const togglePlay=()=>play.on?stopPlay():startPlay(fx?{a:fx.a,b:fx.b}:null);
+$('playBtn').addEventListener('click',togglePlay);
+const setBpm=v=>{const sh=sheet();sh.bpm=Math.max(30,Math.min(260,Math.round(+v||sh.bpm)));save();renderTransport()};
+$('bpmDown').addEventListener('click',()=>setBpm(sheet().bpm-5));
+$('bpmUp').addEventListener('click',()=>setBpm(sheet().bpm+5));
+$('bpm').addEventListener('change',e=>setBpm(e.target.value));
+$('div').addEventListener('change',e=>{sheet().div=+e.target.value;save()});
+$('loopBtn').addEventListener('click',()=>{store.loop=!store.loop;save();renderTransport()});
+$('clickBtn').addEventListener('click',()=>{store.click=!store.click;save();renderTransport()});
+$('keyRoot').innerHTML='<option value="">No key</option>'+ROOTS.map((r,i)=>`<option value="${i}">Key of ${r}</option>`).join('');
+$('keyMode').innerHTML=MODES.map((m,i)=>`<option value="${i}">${m.name}</option>`).join('');
+$('keyRoot').addEventListener('change',e=>{
+  const sh=sheet(),v=e.target.value;
+  sh.key=v===''?null:{root:+v,mode:sh.key?sh.key.mode:0};save();render();
+});
+$('keyMode').addEventListener('change',e=>{const sh=sheet();if(!sh.key)return;sh.key.mode=+e.target.value;save();render()});
+$('scaleBtn').addEventListener('click',()=>{store.showScale=!store.showScale;save();render()});
+
+document.addEventListener('keydown',e=>{
+  if(e.target.matches('input,textarea,select'))return;
+  if(e.key===' '&&!pending&&$('overlay').hidden){e.preventDefault();togglePlay();return}
+  if(!$('overlay').hidden){if(e.key==='Escape')$('overlay').hidden=true;return}
+  if(fx){
+    const k=e.key;
+    if((e.metaKey||e.ctrlKey)&&k.toLowerCase()==='z'){undo();e.preventDefault()}
+    else if(['1','2','3','4','T','t'].includes(k))fxSetFinger(k.toUpperCase());
+    else if(k==='ArrowLeft'){fxStep(-1,e.shiftKey);e.preventDefault()}
+    else if(k==='ArrowRight'){fxStep(1,e.shiftKey);e.preventDefault()}
+    else if(k==='-'||k==='[')fitRun(fx.pos-1);
+    else if(k==='='||k==='+'||k===']')fitRun(fx.pos+1);
+    else if(k==='Escape'||k==='Enter')exitFx();
+    return;
+  }
+  if(pending){
+    const k=e.key.toUpperCase();
+    const put=fg=>{const {s,f,replace}=pending;pending=null;replace?replaceSelected(s,f,fg):addNote(s,f,fg)};
+    if(['1','2','3','4','T'].includes(k)){put(k);e.preventDefault()}
+    else if(k==='0'||k==='N')put('');
+    else if(e.key==='Escape'){pending=null;render()}
+    return;
+  }
+  if(editing&&['1','2','3','4','T'].includes(e.key.toUpperCase())&&!e.metaKey&&!e.ctrlKey){setFinger(e.key.toUpperCase());return}
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='z'){undo();e.preventDefault()}
+  else if(e.key==='Backspace'||e.key==='Delete'){removeSelected();e.preventDefault()}
+  else if(e.key==='ArrowLeft'){moveCursor(-1);e.preventDefault()}
+  else if(e.key==='ArrowRight'){moveCursor(1);e.preventDefault()}
+  else if(e.key.toLowerCase()==='b')insert({id:uid(),kind:'bar'});
+  else if(e.key.toLowerCase()==='r')insert({id:uid(),kind:'gap'});
+  else if(e.key.toLowerCase()==='f')enterFx();
+  else if(e.key==='Escape'&&editing){editing=false;render()}
+  else if(e.key==='ArrowUp'){nudgeFret(1);e.preventDefault()}
+  else if(e.key==='ArrowDown'){nudgeFret(-1);e.preventDefault()}
+});
+
+render();
+</script>
