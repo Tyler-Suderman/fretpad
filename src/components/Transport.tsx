@@ -1,23 +1,37 @@
-import { MODES, ROOTS } from '../music/theory.ts';
+import type { ComponentPropsWithoutRef, Dispatch } from 'react';
 import { hasNotes } from '../music/tab.ts';
+import { MODES, ROOTS } from '../music/theory.ts';
+import type { Division, Sheet } from '../music/types.ts';
+import type { Action, Settings } from '../state/editor.ts';
 
-const DIVISIONS = [
+const DIVISIONS: readonly { value: Division; label: string }[] = [
   { value: 4, label: 'Each column = ♩ quarter' },
   { value: 8, label: 'Each column = ♪ eighth' },
   { value: 16, label: 'Each column = 16th' },
 ];
 
-function Toggle({ on, onClick, children, ...rest }) {
+const toDivision = (value: string): Division => DIVISIONS.find((d) => String(d.value) === value)?.value ?? 8;
+
+type ToggleProps = { on: boolean } & ComponentPropsWithoutRef<'button'>;
+
+function Toggle({ on, children, ...rest }: ToggleProps) {
   return (
-    <button className="btn toggle" aria-pressed={on} onClick={onClick} {...rest}>
+    <button className="btn toggle" aria-pressed={on} {...rest}>
       {children}
     </button>
   );
 }
 
-export default function Transport({ sheet, settings, playing, onTogglePlay, dispatch }) {
-  const toggle = (setting) => () => dispatch({ type: 'TOGGLE', setting });
-  const setKey = (key) => dispatch({ type: 'SET_KEY', key });
+interface Props {
+  sheet: Sheet;
+  settings: Settings;
+  playing: boolean;
+  onTogglePlay: () => void;
+  dispatch: Dispatch<Action>;
+}
+
+export default function Transport({ sheet, settings, playing, onTogglePlay, dispatch }: Props) {
+  const toggle = (setting: keyof Settings) => () => dispatch({ type: 'TOGGLE', setting });
 
   return (
     <div className="transport">
@@ -38,7 +52,11 @@ export default function Transport({ sheet, settings, playing, onTogglePlay, disp
           −
         </button>
         <label htmlFor="bpm">
-          <TempoInput key={sheet.id + sheet.bpm} bpm={sheet.bpm} onCommit={(bpm) => dispatch({ type: 'SET_TEMPO', bpm })} />
+          <TempoInput
+            key={`${sheet.id}-${sheet.bpm}`}
+            bpm={sheet.bpm}
+            onCommit={(bpm) => dispatch({ type: 'SET_TEMPO', bpm })}
+          />
           BPM
         </label>
         <button className="btn sq" aria-label="Faster" onClick={() => dispatch({ type: 'SET_TEMPO', bpm: sheet.bpm + 5 })}>
@@ -50,7 +68,7 @@ export default function Transport({ sheet, settings, playing, onTogglePlay, disp
         id="div"
         aria-label="Note value of each column"
         value={sheet.div}
-        onChange={(e) => dispatch({ type: 'SET_DIVISION', div: Number(e.target.value) })}
+        onChange={(e) => dispatch({ type: 'SET_DIVISION', div: toDivision(e.target.value) })}
       >
         {DIVISIONS.map((d) => (
           <option key={d.value} value={d.value}>
@@ -71,7 +89,10 @@ export default function Transport({ sheet, settings, playing, onTogglePlay, disp
           aria-label="Key root"
           value={sheet.key ? sheet.key.root : ''}
           onChange={(e) =>
-            setKey(e.target.value === '' ? null : { root: Number(e.target.value), mode: sheet.key?.mode ?? 0 })
+            dispatch({
+              type: 'SET_KEY',
+              key: e.target.value === '' ? null : { root: Number(e.target.value), mode: sheet.key?.mode ?? 0 },
+            })
           }
         >
           <option value="">No key</option>
@@ -86,7 +107,7 @@ export default function Transport({ sheet, settings, playing, onTogglePlay, disp
           aria-label="Mode"
           disabled={!sheet.key}
           value={sheet.key?.mode ?? 0}
-          onChange={(e) => setKey({ ...sheet.key, mode: Number(e.target.value) })}
+          onChange={(e) => sheet.key && dispatch({ type: 'SET_KEY', key: { ...sheet.key, mode: Number(e.target.value) } })}
         >
           {MODES.map((m, i) => (
             <option key={m.name} value={i}>
@@ -103,7 +124,7 @@ export default function Transport({ sheet, settings, playing, onTogglePlay, disp
 }
 
 /** Lets you type freely; commits on blur or Enter. Remounted (via key) when the tempo changes elsewhere. */
-function TempoInput({ bpm, onCommit }) {
+function TempoInput({ bpm, onCommit }: { bpm: number; onCommit: (bpm: number) => void }) {
   return (
     <input
       id="bpm"

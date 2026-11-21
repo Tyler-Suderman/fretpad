@@ -1,11 +1,11 @@
 import { useEffect, useEffectEvent, useReducer, useState } from 'react';
 import { usePlayback } from './audio/usePlayback.ts';
-import ExportDialog from './components/ExportDialog.jsx';
-import Fretboard from './components/Fretboard.jsx';
-import Header from './components/Header.jsx';
-import ModePanel from './components/ModePanel.jsx';
-import Staff from './components/Staff.jsx';
-import Transport from './components/Transport.jsx';
+import ExportDialog from './components/ExportDialog.tsx';
+import Fretboard from './components/Fretboard.tsx';
+import Header from './components/Header.tsx';
+import ModePanel from './components/ModePanel.tsx';
+import Staff from './components/Staff.tsx';
+import Transport from './components/Transport.tsx';
 import { leadNote } from './music/tab.ts';
 import { midiAt, midiOf } from './music/theory.ts';
 import { accepts, createEditorState, currentSheet, editorReducer } from './state/editor.ts';
@@ -14,8 +14,11 @@ import { loadSaved, save } from './state/storage.ts';
 import { fretboardView, staffView } from './state/views.ts';
 import './styles.css';
 
+const isTyping = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement && target.matches('input, textarea, select');
+
 export default function App() {
-  const [state, dispatch] = useReducer(editorReducer, undefined, () => createEditorState(loadSaved()));
+  const [state, dispatch] = useReducer(editorReducer, null, () => createEditorState(loadSaved()));
   const [exportOpen, setExportOpen] = useState(false);
   const { doc, settings, mode } = state;
   const sheet = currentSheet(state);
@@ -33,37 +36,37 @@ export default function App() {
   }
 
   // Sound is a side effect of input, so it lives here rather than in the reducer.
-  function tapFret(s, f) {
+  function tapFret(s: number, f: number) {
     playback.preview(midiAt(s, f));
     dispatch({ type: 'TAP_FRET', s, f });
   }
 
-  function selectColumn(i, extend = false) {
+  function selectColumn(i: number, extend = false) {
     const note = leadNote(sheet.events[i]);
     if (note && !extend) playback.preview(midiOf(note));
     dispatch({ type: 'SELECT_COLUMN', i, extend });
   }
 
   // Keyboard: an effect event always sees current state without re-subscribing.
-  const onKey = useEffectEvent((e) => {
-    if (e.target.matches('input, textarea, select')) return;
+  const onKey = useEffectEvent((e: KeyboardEvent) => {
+    if (isTyping(e.target)) return;
     if (exportOpen) {
       if (e.key === 'Escape') setExportOpen(false);
       return;
     }
-    const action = keyToAction(e, mode);
-    if (!action) return;
+    const command = keyToAction(e, mode);
+    if (!command) return;
     e.preventDefault();
-    if (action.type === 'TOGGLE_PLAY') return togglePlay();
-    if (!accepts(state, action.type)) return;
-    if (action.type === 'NUDGE_FRET') {
+    if (command.type === 'TOGGLE_PLAY') return togglePlay();
+    if (!accepts(state, command.type)) return;
+    if (command.type === 'NUDGE_FRET') {
       const n = leadNote(sheet.events[sheet.cursor]);
-      if (n) playback.preview(midiOf(n) + action.d);
+      if (n) playback.preview(midiOf(n) + command.d);
     }
-    dispatch(action);
+    dispatch(command);
   });
   useEffect(() => {
-    const handler = (e) => onKey(e);
+    const handler = (e: KeyboardEvent) => onKey(e);
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);

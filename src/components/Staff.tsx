@@ -1,24 +1,26 @@
 import { useEffect, useRef } from 'react';
 import { OPEN, TUNING, keyName, noteName } from '../music/theory.ts';
+import type { StaffColumn, StaffView } from '../state/views.ts';
 
-const strings = TUNING.map((_, s) => s);
+type OnSelect = (i: number, extend?: boolean) => void;
 
-function NoteColumn({ col, onSelect }) {
+const STRINGS = TUNING.map((_, s) => s);
+
+function NoteColumn({ col, onSelect }: { col: StaffColumn; onSelect: OnSelect }) {
   const cls = ['col', col.kind, col.selected && 'sel', col.inRange && 'rsel', col.editing && 'editing', col.playing && 'play']
     .filter(Boolean)
     .join(' ');
   return (
     <div className={cls} data-i={col.i} onClick={(e) => onSelect(col.i, e.shiftKey)}>
-      {strings.map((s) => {
-        if (col.kind === 'bar') return <div key={s} className="cell" />;
-        const n = col.notes.find((x) => x.s === s);
+      {STRINGS.map((s) => {
+        const n = col.kind === 'notes' ? col.notes.find((x) => x.s === s) : undefined;
         if (!n) return <div key={s} className="cell" />;
-        const showFinger = n.finger && n.finger !== OPEN;
+        const showFinger = n.finger !== '' && n.finger !== OPEN;
         return (
           <div key={s} className="cell">
             <span
               className={n.outOfKey ? 'num ook' : 'num'}
-              data-f={n.finger ?? ''}
+              data-f={n.finger}
               title={n.outOfKey ? `${noteName(n.s, n.f)} is outside the key` : undefined}
             >
               {n.f}
@@ -31,8 +33,8 @@ function NoteColumn({ col, onSelect }) {
   );
 }
 
-export default function Staff({ view, onSelect }) {
-  const wrap = useRef(null);
+export default function Staff({ view, onSelect }: { view: StaffView; onSelect: OnSelect }) {
+  const wrap = useRef<HTMLDivElement>(null);
 
   // keep the selected or playing column in view
   useEffect(() => {

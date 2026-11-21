@@ -1,7 +1,15 @@
 import { FINGERS } from '../music/theory.ts';
+import type { Finger } from '../music/types.ts';
 
-/** Round finger buttons 1-4, T and optionally "none". `current` gets a ring. */
-export default function FingerButtons({ current, onPick, allowNone = true }) {
+interface Props {
+  /** Finger currently on the note; that button gets a ring. */
+  current?: Finger | null;
+  onPick: (finger: Finger) => void;
+  allowNone?: boolean;
+}
+
+/** Round finger buttons 1-4, T and optionally "none". */
+export default function FingerButtons({ current = null, onPick, allowNone = true }: Props) {
   return (
     <>
       {FINGERS.map((x) => (

@@ -1,28 +1,37 @@
 // The strip between the tab and the fretboard. One panel per editor mode.
+import type { ComponentPropsWithoutRef, Dispatch, ReactNode } from 'react';
 import { hasNotes, leadNote, noteIndicesBetween } from '../music/tab.ts';
-import { TUNING, keyName, midiOf, noteName, scaleOf } from '../music/theory.ts';
-import FingerButtons from './FingerButtons.jsx';
+import { OPEN, keyName, midiOf, noteName, scaleOf, stringLabel } from '../music/theory.ts';
+import type { Sheet, Spot } from '../music/types.ts';
+import type { Action, Mode } from '../state/editor.ts';
+import FingerButtons from './FingerButtons.tsx';
 
-const where = (n) => `${TUNING[n.s].label} string · fret ${n.f} · ${noteName(n.s, n.f)}`;
+type ModeOf<T extends Mode['type']> = Extract<Mode, { type: T }>;
 
-function Btn({ children, primary, ...rest }) {
-  return (
-    <button className={primary ? 'btn primary' : 'btn'} {...rest}>
-      {children}
-    </button>
-  );
+interface PanelProps {
+  sheet: Sheet;
+  canUndo: boolean;
+  playing: boolean;
+  onPlayRange: () => void;
+  dispatch: Dispatch<Action>;
 }
 
-function AddingPanel({ sheet, canUndo, dispatch, editingRest }) {
+const where = (n: Spot) => `${stringLabel(n.s)} string · fret ${n.f} · ${noteName(n.s, n.f)}`;
+
+function Btn({ primary, ...rest }: { primary?: boolean } & ComponentPropsWithoutRef<'button'>) {
+  return <button className={primary ? 'btn primary' : 'btn'} {...rest} />;
+}
+
+function AddingPanel({ sheet, canUndo, dispatch, editingRest = false }: PanelProps & { editingRest?: boolean }) {
   const cur = sheet.events[sheet.cursor];
   const after = editingRest ? 'Tap a fret to replace it.' : 'New notes go after it.';
-  let hint = 'Tap a fret to add a note.';
-  if (cur?.kind === 'notes') {
-    const n = leadNote(cur);
+  const n = leadNote(cur);
+  let hint: ReactNode = 'Tap a fret to add a note.';
+  if (n) {
     hint = (
       <>
-        Selected: <b>{TUNING[n.s].label} string, fret {n.f}</b> ({noteName(n.s, n.f)})
-        {n.finger && n.finger !== '0' ? `, finger ${n.finger}` : ''}. {after}
+        Selected: <b>{stringLabel(n.s)} string, fret {n.f}</b> ({noteName(n.s, n.f)})
+        {n.finger && n.finger !== OPEN ? `, finger ${n.finger}` : ''}. {after}
       </>
     );
   } else if (cur?.kind === 'bar') hint = <>Selected: <b>bar line</b>. New notes go after it.</>;
@@ -48,7 +57,7 @@ function AddingPanel({ sheet, canUndo, dispatch, editingRest }) {
   );
 }
 
-function PickingPanel({ mode, sheet, dispatch }) {
+function PickingPanel({ mode, sheet, dispatch }: PanelProps & { mode: ModeOf<'picking'> }) {
   const had = mode.replace ? leadNote(sheet.events[sheet.cursor])?.finger : null;
   return (
     <div className="picker">
@@ -64,8 +73,10 @@ function PickingPanel({ mode, sheet, dispatch }) {
   );
 }
 
-function EditingPanel({ sheet, dispatch }) {
+function EditingPanel(props: PanelProps) {
+  const { sheet, dispatch } = props;
   const n = leadNote(sheet.events[sheet.cursor]);
+  if (!n) return <AddingPanel {...props} editingRest />; // a selected rest edits like adding
   return (
     <div className="picker">
       <div className="what">
@@ -84,12 +95,12 @@ function EditingPanel({ sheet, dispatch }) {
   );
 }
 
-function FingeringPanel({ mode, sheet, playing, canUndo, onPlayRange, dispatch }) {
+function FingeringPanel({ mode, sheet, playing, canUndo, onPlayRange, dispatch }: PanelProps & { mode: ModeOf<'fingering'> }) {
   const { events } = sheet;
-  const idx = noteIndicesBetween(events, mode.a, mode.b);
+  const notes = noteIndicesBetween(events, mode.a, mode.b).flatMap((i) => leadNote(events[i]) ?? []);
   const single = mode.a === mode.b;
   const scale = scaleOf(sheet.key);
-  const outside = scale ? idx.filter((i) => !scale.has(midiOf(leadNote(events[i])) % 12)).length : 0;
+  const outside = scale ? notes.filter((n) => !scale.has(midiOf(n) % 12)).length : 0;
   const allNotes = events.flatMap((e, i) => (e.kind === 'notes' ? [i] : []));
   const lead = leadNote(events[mode.a]);
   const key = keyName(sheet.key);
@@ -99,14 +110,14 @@ function FingeringPanel({ mode, sheet, playing, canUndo, onPlayRange, dispatch }
       <div className="fxrow">
         <div className="what">
           <small>Fingering mode</small>
-          {single ? (
+          {single && lead ? (
             <>
               Note {allNotes.indexOf(mode.a) + 1} of {allNotes.length} · {where(lead)}
               {outside > 0 && <> · <span className="warn">outside {key}</span></>}
             </>
           ) : (
             <>
-              {idx.length} notes selected{key && ` in ${key}`}
+              {notes.length} notes selected{key && ` in ${key}`}
               {outside > 0 && <> · <span className="warn">{outside} outside the key</span></>}
             </>
           )}
@@ -124,7 +135,7 @@ function FingeringPanel({ mode, sheet, playing, canUndo, onPlayRange, dispatch }
         <Btn primary onClick={() => dispatch({ type: 'EXIT' })} title="Leave fingering mode (Esc)">Done</Btn>
       </div>
 
-      {single && (
+      {single && lead && (
         <div className="fxrow">
           <button className="btn sq" aria-label="Previous note" onClick={() => dispatch({ type: 'STEP', d: -1 })}>‹</button>
           {lead.f === 0 ? (
@@ -146,21 +157,18 @@ function FingeringPanel({ mode, sheet, playing, canUndo, onPlayRange, dispatch }
   );
 }
 
-export default function ModePanel(props) {
-  const { mode, sheet } = props;
-  let panel;
-  switch (mode.type) {
-    case 'picking':
-      panel = <PickingPanel {...props} />;
-      break;
-    case 'fingering':
-      panel = <FingeringPanel {...props} />;
-      break;
-    case 'editing':
-      panel = sheet.events[sheet.cursor]?.kind === 'notes' ? <EditingPanel {...props} /> : <AddingPanel {...props} editingRest />;
-      break;
-    default:
-      panel = <AddingPanel {...props} />;
-  }
+export default function ModePanel({ mode, ...props }: PanelProps & { mode: Mode }) {
+  const panel = (() => {
+    switch (mode.type) {
+      case 'picking':
+        return <PickingPanel mode={mode} {...props} />;
+      case 'fingering':
+        return <FingeringPanel mode={mode} {...props} />;
+      case 'editing':
+        return <EditingPanel {...props} />;
+      case 'adding':
+        return <AddingPanel {...props} />;
+    }
+  })();
   return <div className="strip">{panel}</div>;
 }

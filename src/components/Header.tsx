@@ -1,6 +1,19 @@
-export default function Header({ sheets, sheet, dispatch, onExport }) {
-  const onPickSheet = (e) => {
-    if (e.target.value === '__new') dispatch({ type: 'NEW_SHEET' });
+import type { ChangeEvent, Dispatch } from 'react';
+import type { Sheet } from '../music/types.ts';
+import type { Action } from '../state/editor.ts';
+
+const NEW_SHEET = '__new';
+
+interface Props {
+  sheets: Sheet[];
+  sheet: Sheet;
+  dispatch: Dispatch<Action>;
+  onExport: () => void;
+}
+
+export default function Header({ sheets, sheet, dispatch, onExport }: Props) {
+  const onPickSheet = (e: ChangeEvent<HTMLSelectElement>) => {
+    if (e.target.value === NEW_SHEET) dispatch({ type: 'NEW_SHEET' });
     else dispatch({ type: 'SWITCH_SHEET', id: e.target.value });
   };
   return (
@@ -22,7 +35,7 @@ export default function Header({ sheets, sheet, dispatch, onExport }) {
               {s.title || 'Untitled'}
             </option>
           ))}
-          <option value="__new">+ New sheet</option>
+          <option value={NEW_SHEET}>+ New sheet</option>
         </select>
         <button className="btn" onClick={onExport}>
           Export

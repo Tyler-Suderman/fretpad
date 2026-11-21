@@ -1,6 +1,6 @@
 import { renderToString } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import App from './App.jsx';
+import App from './App.tsx';
 
 describe('App', () => {
   it('renders the sample sheet, transport and fretboard', () => {

@@ -1,10 +1,17 @@
 import { useRef, useState } from 'react';
 import { toAscii } from '../music/ascii.ts';
+import type { Sheet } from '../music/types.ts';
 
-export default function ExportDialog({ sheet, onClose, onDeleteSheet }) {
+interface Props {
+  sheet: Sheet;
+  onClose: () => void;
+  onDeleteSheet: () => void;
+}
+
+export default function ExportDialog({ sheet, onClose, onDeleteSheet }: Props) {
   const [message, setMessage] = useState('');
   const [deleteArmed, setDeleteArmed] = useState(false);
-  const text = useRef(null);
+  const text = useRef<HTMLTextAreaElement>(null);
   const ascii = toAscii(sheet);
 
   async function copy() {
@@ -12,15 +19,15 @@ export default function ExportDialog({ sheet, onClose, onDeleteSheet }) {
       await navigator.clipboard.writeText(ascii);
       setMessage('Copied.');
     } catch {
-      text.current.focus();
-      text.current.select();
+      text.current?.focus();
+      text.current?.select();
       setMessage('Text selected. Press Ctrl/⌘ C to copy.');
     }
   }
 
   function deleteSheet() {
-    if (!deleteArmed) return setDeleteArmed(true);
-    onDeleteSheet();
+    if (deleteArmed) onDeleteSheet();
+    else setDeleteArmed(true);
   }
 
   return (
@@ -30,7 +37,7 @@ export default function ExportDialog({ sheet, onClose, onDeleteSheet }) {
         <p>The row under each staff shows fingers: 1 index, 2 middle, 3 ring, 4 pinky, T thumb.</p>
         <textarea id="ascii" ref={text} readOnly spellCheck={false} value={ascii} />
         <div className="row">
-          <button className="btn primary" onClick={copy}>
+          <button className="btn primary" onClick={() => void copy()}>
             Copy text
           </button>
           <span className="toast">{message}</span>
