@@ -72,16 +72,16 @@ export default function Transport({ sheet, settings, playing, onTogglePlay, disp
         >
           ]
         </button>
-        {hasSection && (
-          <button
-            className="btn sq"
-            aria-label="Clear loop section"
-            title="Clear the loop section and play the whole sheet"
-            onClick={() => dispatch({ type: 'CLEAR_SECTION' })}
-          >
-            ×
-          </button>
-        )}
+        {/* always rendered (disabled with no section) so the group never shifts */}
+        <button
+          className="btn sq"
+          aria-label="Clear loop section"
+          title={hasSection ? 'Clear the loop section and play the whole sheet' : 'No loop section set'}
+          disabled={!hasSection}
+          onClick={() => dispatch({ type: 'CLEAR_SECTION' })}
+        >
+          ×
+        </button>
       </div>
     </div>
   );
