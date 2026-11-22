@@ -25,12 +25,15 @@ describe('presets', () => {
     expect(ns.slice(0, 2).map((n) => n.finger)).toEqual(['1', '4']);
   });
 
-  it('climbing sevenths: 1 3 5 7 8 7 5 3 from every degree to the octave, then the scale down', () => {
+  it('climbing sevenths: 1 3 5 7 8 7 5 3 from every degree to the octave, then down the chord', () => {
     const ns = names(notes('c-major-sevenths'));
     expect(ns.slice(0, 8)).toEqual(['C3', 'E3', 'G3', 'B3', 'C4', 'B3', 'G3', 'E3']);
     expect(ns.slice(8, 16)).toEqual(['D3', 'F3', 'A3', 'C4', 'D4', 'C4', 'A3', 'F3']);
     expect(ns.slice(56, 64)).toEqual(['C4', 'E4', 'G4', 'B4', 'C5', 'B4', 'G4', 'E4']);
-    expect(ns.slice(64)).toEqual(['D4', 'C4', 'B3', 'A3', 'G3', 'F3', 'E3', 'D3', 'C3']);
+    expect(ns.slice(64)).toEqual(['C4', 'B3', 'G3', 'E3', 'C3']); // down the root chord
+    const events = presetSheet('c-major-sevenths').events;
+    expect(events).toHaveLength(72); // nine full bars of eighths
+    expect(events.slice(-3).map((e) => e.kind)).toEqual(['rest', 'rest', 'rest']);
   });
 
   it('A major four chords: the written run, copied note for note with fresh ids', () => {

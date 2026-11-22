@@ -1,9 +1,9 @@
 // Ready-made practice sheets. Pure: each call builds a fresh sheet with new column ids.
 import fourChordRun from './fixtures/nate-noodle-a.json';
 import { fingerFor } from './fingering.ts';
-import { newSheet, noteEvent } from './tab.ts';
+import { newSheet, noteEvent, restEvent } from './tab.ts';
 import { MODES, spotsFor } from './theory.ts';
-import type { Finger, Key, Note, Sheet } from './types.ts';
+import type { Column, Finger, Key, Note, Sheet } from './types.ts';
 
 /** MIDI note of scale degree `d` (1 is the root at `rootMidi`; 8 is the octave in a 7-note scale). */
 export function degreeMidi(rootMidi: number, steps: readonly number[], d: number): number {
@@ -39,7 +39,8 @@ interface PresetSpec {
   root: number;
   /** Finger 1's fret. */
   pos: number;
-  degrees: number[];
+  /** Scale degrees in order; null is a rest. */
+  degrees: (number | null)[];
 }
 
 const C_MAJOR: Key = { root: 0, mode: 0 };
@@ -47,10 +48,14 @@ const A_MINOR_PENTATONIC: Key = { root: 9, mode: 8 };
 const C3 = 48; // low E string, fret 8
 const A2 = 45; // low E string, fret 5
 
-/** 1 3 5 7 8 7 5 3 from each degree up to the octave, then the scale back down to the root. */
-const climbingSevenths = (): number[] => [
+/**
+ * 1 3 5 7 8 7 5 3 from each degree up to the octave, then down the root chord (8 7 5 3 1) to the low root,
+ * resting out the rest of the bar.
+ */
+const climbingSevenths = (): (number | null)[] => [
   ...range(1, 8).flatMap((d) => [d, d + 2, d + 4, d + 6, d + 7, d + 6, d + 4, d + 2]),
-  ...range(9, 1),
+  ...[8, 7, 5, 3, 1],
+  ...[null, null, null],
 ];
 
 const SPECS = {
@@ -112,9 +117,13 @@ export function presetSheet(id: PresetId): Sheet {
   const { title, key, root, pos, degrees } = SPECS[id as keyof typeof SPECS];
   const steps = MODES[key.mode]?.steps ?? [];
   const notes = inPosition(
-    degrees.map((d) => degreeMidi(root, steps, d)),
+    degrees.flatMap((d) => (d === null ? [] : [degreeMidi(root, steps, d)])),
     pos,
   );
-  const events = notes.map((n) => noteEvent(n.s, n.f, n.finger));
+  let k = 0;
+  const events: Column[] = degrees.map((d) => {
+    const n = d === null ? undefined : notes[k++];
+    return n ? noteEvent(n.s, n.f, n.finger) : restEvent();
+  });
   return { ...newSheet(title), events, cursor: events.length - 1, bpm: 80, div: 8, key, system: 'caged' };
 }
