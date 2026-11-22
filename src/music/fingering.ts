@@ -60,11 +60,11 @@ export function cagedPositions(key: Key): number[] {
 const reaches = (fret: number, pos: number): boolean => fret >= pos - 1 && fret <= pos + 4;
 
 /**
- * Suggest a finger for a fret, given the notes just before it.
+ * The box rule on its own: the finger a fixed hand position gives the fret.
  * caged (with a key): the shape that reaches the fret, preferring no stretch, then the one nearest the recent hand.
  * perFret, or caged without a key: keep the recent hand if it reaches the fret, else move it the least.
  */
-export function suggestFinger(fret: number, recent: readonly Note[], key: Key | null, system: FingeringSystem): Finger {
+export function boxFinger(fret: number, recent: readonly Note[], key: Key | null, system: FingeringSystem): Finger {
   if (fret === 0) return OPEN;
   const fretted = recent.filter((n) => n.f > 0);
   const hand = fretted.length ? inferPos(fretted) : null;
@@ -80,6 +80,87 @@ export function suggestFinger(fret: number, recent: readonly Note[], key: Key | 
   if (hand !== null && reaches(fret, hand)) return fingerFor(fret, hand);
   if (hand !== null && fret > hand + 4) return fingerFor(fret, clampPos(fret - 3)); // reach up: pinky
   return fingerFor(fret, clampPos(fret)); // first note, or reaching down: index
+}
+
+const FRETTING: readonly Finger[] = ['1', '2', '3', '4'];
+
+/**
+ * Hand-model weights, checked against a real played sheet (src/music/fixtures/nate-noodle.json) but chosen as
+ * round, sensible values rather than fitted to it.
+ */
+const HAND = {
+  /** How much each earlier note counts, most recent first. */
+  recency: [1, 0.5, 0.3, 0.2],
+  /** Same finger, same fret, next string: rolling across. */
+  roll: 0.5,
+  /** Same finger elsewhere: the finger has to lift and move (plus a little per fret). */
+  move: 1.5,
+  movePerFret: 0.3,
+  /** Two fingers on the same fret. */
+  sameFret: 1.5,
+  /** Each fret two fingers sit off their natural one-fret-apart spacing, up to one fret (a normal stretch)... */
+  stretch: 0.75,
+  /** ...and beyond that. */
+  farStretch: 2,
+  /** A higher finger on a lower fret than a lower finger. */
+  cross: 8,
+  /** Using a finger the system's box rule wouldn't. */
+  offPattern: 0.75,
+};
+
+/** How awkward finger k on (s, f) is right after finger rk on (rs, rf). */
+function transitionCost(k: number, s: number, f: number, rk: number, rs: number, rf: number): number {
+  if (rk === k) {
+    if (rf === f && rs === s) return 0;
+    if (rf === f && Math.abs(rs - s) === 1) return HAND.roll;
+    return HAND.move + HAND.movePerFret * Math.abs(rf - f);
+  }
+  const gap = k > rk ? f - rf : rf - f; // frets from the lower finger up to the higher one
+  if (gap < 0) return HAND.cross;
+  if (gap === 0) return HAND.sameFret;
+  const off = Math.abs(gap - Math.abs(k - rk));
+  return off <= 1 ? HAND.stretch * off : HAND.stretch + HAND.farStretch * (off - 1);
+}
+
+/** Fingers the box rule allows for the fret: any CAGED shape that reaches it (with a key), else the box finger. */
+function patternFingers(fret: number, recent: readonly Note[], key: Key | null, system: FingeringSystem): Set<Finger> {
+  if (system === 'caged' && key) {
+    const shapes = cagedPositions(key).filter((p) => reaches(fret, p));
+    if (shapes.length) return new Set(shapes.map((p) => fingerFor(fret, p)));
+  }
+  return new Set([boxFinger(fret, recent, key, system)]);
+}
+
+/**
+ * Suggest a finger for a note, given the notes just before it (most recent first).
+ * Follows the hand: each finger is scored by how it sits against the recent fingers (one fret apart, rolls,
+ * stretches, shifts), with the system's box rule as a light preference. No fretted context: the box rule.
+ */
+export function suggestFinger(
+  { s, f }: Pick<Spot, 's' | 'f'>,
+  recent: readonly Note[],
+  key: Key | null,
+  system: FingeringSystem,
+): Finger {
+  if (f === 0) return OPEN;
+  const context = recent.slice(0, HAND.recency.length);
+  const fingered = context.some((n) => n.f > 0 && FRETTING.includes(n.finger));
+  if (!fingered) return boxFinger(f, recent, key, system);
+  const pattern = patternFingers(f, recent, key, system);
+  let best: Finger = '1';
+  let bestCost = Infinity;
+  for (const finger of FRETTING) {
+    const k = Number(finger);
+    let cost = pattern.has(finger) ? 0 : HAND.offPattern;
+    context.forEach((r, j) => {
+      if (r.f > 0 && FRETTING.includes(r.finger)) cost += HAND.recency[j]! * transitionCost(k, s, f, Number(r.finger), r.s, r.f);
+    });
+    if (cost < bestCost - 1e-9) {
+      bestCost = cost;
+      best = finger;
+    }
+  }
+  return best;
 }
 
 /** Cost of playing a spot with the hand at `pos`: in the box, then a 1-fret stretch, then open, then far. */

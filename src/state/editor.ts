@@ -207,7 +207,7 @@ function notesBefore(sheet: Sheet, replace: boolean): Note[] {
 function tapFret(state: EditorState, { s, f }: ActionOf<'TAP_FRET'>, replace: boolean): EditorState {
   if (f === 0) return replace ? replaceAtCursor(state, s, 0, OPEN) : insert(state, noteEvent(s, 0, OPEN));
   const sheet = currentSheet(state);
-  const suggest = suggestFinger(f, notesBefore(sheet, replace), sheet.key, sheet.system ?? 'perFret');
+  const suggest = suggestFinger({ s, f }, notesBefore(sheet, replace), sheet.key, sheet.system ?? 'perFret');
   return to(state, { type: 'picking', s, f, replace, suggest });
 }
 
