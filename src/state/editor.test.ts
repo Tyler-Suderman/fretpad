@@ -150,7 +150,10 @@ describe('loop section', () => {
         { type: 'CHOOSE_FINGER', finger: '1' },
       ]),
     );
-  const range = (state: EditorState) => sectionRange(sheet(state));
+  const range = (state: EditorState) => {
+    const r = sectionRange(sheet(state));
+    return r && { a: r.a, b: r.b };
+  };
   const at = (state: EditorState, i: number) => run(state, { type: 'SELECT_COLUMN', i }, { type: 'DONE' });
 
   it('a start alone runs to the end; an end alone runs from the beginning', () => {
@@ -176,6 +179,21 @@ describe('loop section', () => {
   it('is gone if one of its edge columns is deleted', () => {
     const state = run(at(five(), 4), { type: 'SET_SECTION_END' }, { type: 'DELETE' });
     expect(range(state)).toBeNull();
+  });
+
+  it('with no end set, notes added at the end still belong; a set end stays put', () => {
+    let state = run(at(five(), 2), { type: 'SET_SECTION_START' });
+    state = run(state, { type: 'MOVE_CURSOR', d: 1 }, { type: 'MOVE_CURSOR', d: 1 }, { type: 'TAP_FRET', s: 4, f: 0 });
+    expect(range(state)).toEqual({ a: 2, b: 5 });
+    expect(sectionRange(sheet(state))?.openEnd).toBe(true);
+    state = run(at(state, 5), { type: 'SET_SECTION_END' }, { type: 'TAP_FRET', s: 4, f: 0 });
+    expect(range(state)).toEqual({ a: 2, b: 5 }); // the new note (column 6) is after the set end
+  });
+
+  it('with no start set, notes added at the beginning still belong', () => {
+    let state = run(at(five(), 2), { type: 'SET_SECTION_END' });
+    state = run(state, { type: 'SELECT_COLUMN', i: -1 }, { type: 'TAP_FRET', s: 4, f: 0 });
+    expect(range(state)).toEqual({ a: 0, b: 3 });
   });
 
   it('in Reconfinger, the brackets take the selected run', () => {

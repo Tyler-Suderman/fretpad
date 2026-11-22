@@ -39,13 +39,22 @@ export function sampleSheet(): Sheet {
   return { ...newSheet('Example: 1-2-3-4 chromatic warm-up'), events, cursor: events.length - 1 };
 }
 
-/** The loop section as column indices (inclusive), or null if unset or one of its columns was deleted. */
-export function sectionRange(sheet: Sheet): { a: number; b: number } | null {
+export interface SectionRange {
+  a: number;
+  b: number;
+  /** The edge was never set, so it follows the sheet's start or end. */
+  openStart: boolean;
+  openEnd: boolean;
+}
+
+/** The loop section as column indices (inclusive), or null if unset, empty, or a set edge's column was deleted. */
+export function sectionRange(sheet: Sheet): SectionRange | null {
   const { section, events } = sheet;
-  if (!section) return null;
-  const a = events.findIndex((e) => e.id === section.from);
-  const b = events.findIndex((e) => e.id === section.to);
-  return a >= 0 && b >= a ? { a, b } : null;
+  if (!section || !events.length || (section.from === null && section.to === null)) return null;
+  const a = section.from === null ? 0 : events.findIndex((e) => e.id === section.from);
+  const b = section.to === null ? events.length - 1 : events.findIndex((e) => e.id === section.to);
+  if (a < 0 || b < a) return null;
+  return { a, b, openStart: section.from === null, openEnd: section.to === null };
 }
 
 /** Indices of note columns from a to b inclusive. */

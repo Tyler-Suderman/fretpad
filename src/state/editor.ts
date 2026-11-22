@@ -218,25 +218,26 @@ function enterFingering(state: EditorState): EditorState {
 }
 
 /**
- * Move one edge of the loop section to column i. With no section yet, the other edge is the sheet's
- * start or end; an edge set past the other one pushes that one back out to the sheet's start or end.
+ * Pin one edge of the loop section to column i. An edge never set stays open (the sheet's start or end, so the
+ * section grows as notes are added past it); a pinned edge crossed by the new one is reopened.
  */
 function setSectionEdge(state: EditorState, edge: 'start' | 'end', i: number): EditorState {
   const sheet = currentSheet(state);
   const { events } = sheet;
-  if (!events[i]) return state;
-  const last = events.length - 1;
-  const cur = sectionRange(sheet);
-  let a = cur?.a ?? 0;
-  let b = cur?.b ?? last;
+  const here = events[i];
+  if (!here) return state;
+  const cur = sectionRange(sheet) ? (sheet.section ?? null) : null;
+  let from = cur?.from ?? null;
+  let to = cur?.to ?? null;
+  const at = (id: string) => events.findIndex((e) => e.id === id);
   if (edge === 'start') {
-    a = i;
-    if (b < a) b = last;
+    from = here.id;
+    if (to !== null && at(to) < i) to = null;
   } else {
-    b = i;
-    if (a > b) a = 0;
+    to = here.id;
+    if (from !== null && at(from) > i) from = null;
   }
-  return patch(state, { section: { from: events[a]!.id, to: events[b]!.id } });
+  return patch(state, { section: { from, to } });
 }
 
 const sectionAtCursor = (edge: 'start' | 'end') => (state: EditorState) =>

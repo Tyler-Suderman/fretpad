@@ -55,8 +55,11 @@ export interface Sheet {
   key: Key | null;
   /** Fingering system for suggestions; absent = one finger per fret. */
   system?: FingeringSystem;
-  /** Loop section, by column id so edits elsewhere don't move it. Absent or null = the whole sheet. */
-  section?: { from: string; to: string } | null;
+  /**
+   * Loop section, by column id so edits elsewhere don't move it. A null edge was never set and stays open:
+   * it means the sheet's start or end, so notes added past it still belong. Absent or null = the whole sheet.
+   */
+  section?: { from: string | null; to: string | null } | null;
 }
 
 /** A place a note could move to, with the hand position and finger that suit it. */

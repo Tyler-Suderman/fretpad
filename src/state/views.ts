@@ -37,6 +37,8 @@ export interface StaffColumn {
   inSection: boolean;
   sectionStart: boolean;
   sectionEnd: boolean;
+  /** This edge of the section was never set, so it follows the sheet (drawn fading out). */
+  sectionOpen: boolean;
 }
 
 export interface StaffView {
@@ -64,6 +66,7 @@ export function staffView(state: EditorState, playingIndex: number): StaffView {
       inSection: section !== null && i >= section.a && i <= section.b,
       sectionStart: section?.a === i,
       sectionEnd: section?.b === i,
+      sectionOpen: (section?.a === i && section.openStart) || (section?.b === i && section.openEnd),
     }),
   );
   return { columns, startSelected: mode.type !== 'fingering' && sheet.cursor === -1, key: sheet.key };
