@@ -39,6 +39,15 @@ export function sampleSheet(): Sheet {
   return { ...newSheet('Example: 1-2-3-4 chromatic warm-up'), events, cursor: events.length - 1 };
 }
 
+/** The loop section as column indices (inclusive), or null if unset or one of its columns was deleted. */
+export function sectionRange(sheet: Sheet): { a: number; b: number } | null {
+  const { section, events } = sheet;
+  if (!section) return null;
+  const a = events.findIndex((e) => e.id === section.from);
+  const b = events.findIndex((e) => e.id === section.to);
+  return a >= 0 && b >= a ? { a, b } : null;
+}
+
 /** Indices of note columns from a to b inclusive. */
 export function noteIndicesBetween(events: readonly Column[], a: number, b: number): number[] {
   const out: number[] = [];

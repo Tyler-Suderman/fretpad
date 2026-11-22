@@ -15,6 +15,7 @@ export interface Playback {
   playingIndex: number;
   start(options?: StartOptions): void;
   stop(): void;
+  /** Sound one note as feedback for a tap. Silent while playing. */
   preview(midi: number): void;
 }
 
@@ -40,7 +41,11 @@ export function usePlayback(sheet: Sheet, settings: PlaybackSettings): Playback 
     () => ({
       start: (opts?: StartOptions) => engine.current?.player.start(opts),
       stop: () => engine.current?.player.stop(),
-      preview: (midi: number) => engine.current?.synth.preview(midi),
+      // no preview notes over playback: editing while it plays stays silent
+      preview: (midi: number) => {
+        const e = engine.current;
+        if (e && !e.player.isPlaying()) e.synth.preview(midi);
+      },
     }),
     [],
   );

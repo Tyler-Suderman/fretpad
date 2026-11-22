@@ -30,7 +30,15 @@ function Mark({ s, f, view }: { s: number; f: number; view: FretboardView }) {
     );
   }
 
-  const pc = midiAt(s, f) % 12;
+  const midi = midiAt(s, f);
+  if (view.focus !== null && midi === view.focus) {
+    return <span className="mark same" title={`${noteName(s, f)}, same pitch`} />;
+  }
+  if (view.focus !== null && midi % 12 === view.focus % 12) {
+    return <span className="mark octave" title={`${noteName(s, f)}, an octave ${midi > view.focus ? 'up' : 'down'}`} />;
+  }
+
+  const pc = midi % 12;
   if (view.scale?.has(pc)) {
     const root = pc === view.root ? ' root' : '';
     if (view.hand !== null && inBox(f, view.hand)) return <span className={`sdot big${root}`}>{fingerFor(f, view.hand)}</span>;

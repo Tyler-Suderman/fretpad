@@ -26,13 +26,16 @@ export function keyToAction({ key, shiftKey, metaKey, ctrlKey }: KeyInput, mode:
   }
 
   if (key === ' ') return { type: 'TOGGLE_PLAY' };
+  // loop section edges, in every mode but picking (in Reconfinger they take the selected run's edges)
+  if (key === '[') return { type: 'SET_SECTION_START' };
+  if (key === ']') return { type: 'SET_SECTION_END' };
 
   if (mode.type === 'fingering') {
     if (finger) return { type: 'SET_FINGER', finger };
     if (key === 'ArrowLeft') return { type: 'STEP', d: -1, extend: shiftKey };
     if (key === 'ArrowRight') return { type: 'STEP', d: 1, extend: shiftKey };
-    if (key === '-' || key === '[') return { type: 'SHIFT_HAND', d: -1 };
-    if (key === '=' || key === '+' || key === ']') return { type: 'SHIFT_HAND', d: 1 };
+    if (key === '-') return { type: 'SHIFT_HAND', d: -1 };
+    if (key === '=' || key === '+') return { type: 'SHIFT_HAND', d: 1 };
     if (key === 'Escape' || key === 'Enter') return { type: 'EXIT' };
     return null;
   }
@@ -55,7 +58,6 @@ export function keyToAction({ key, shiftKey, metaKey, ctrlKey }: KeyInput, mode:
     case 'ArrowDown':
       return { type: 'NUDGE_FRET', d: -1 };
   }
-  if (lower === 'b') return { type: 'INSERT_BAR' };
   if (lower === 'r') return { type: 'INSERT_REST' };
   if (lower === 'f') return { type: 'ENTER_FINGERING' };
   return null;

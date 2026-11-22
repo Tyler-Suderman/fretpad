@@ -50,6 +50,8 @@ export interface Sheet {
   bpm: number;
   div: Division;
   key: Key | null;
+  /** Loop section, by column id so edits elsewhere don't move it. Absent or null = the whole sheet. */
+  section?: { from: string; to: string } | null;
 }
 
 /** A place a note could move to, with the hand position and finger that suit it. */

@@ -12,7 +12,6 @@
 import type { PlaybackSettings } from '../audio/player.ts';
 import { alternativesFor, clampPos, fingerFor, fitRun, inBox, inferPos } from '../music/fingering.ts';
 import {
-  barEvent,
   isNotes,
   isReplaceable,
   leadNote,
@@ -22,6 +21,7 @@ import {
   noteIndicesBetween,
   restEvent,
   sampleSheet,
+  sectionRange,
   stepToNote,
 } from '../music/tab.ts';
 import { FRETS, OPEN, midiAt, midiOf, scaleOf } from '../music/theory.ts';
@@ -65,15 +65,17 @@ export type Action =
   | { type: 'SET_KEY'; key: Key | null }
   | { type: 'TOGGLE'; setting: keyof Settings }
   | { type: 'UNDO' }
+  | { type: 'CLEAR_SECTION' }
   // writing
   | { type: 'TAP_FRET'; s: number; f: number }
   | { type: 'SELECT_COLUMN'; i: number; extend?: boolean }
   | { type: 'INSERT_REST' }
-  | { type: 'INSERT_BAR' }
   | { type: 'DELETE' }
   | { type: 'MOVE_CURSOR'; d: Step }
   | { type: 'NUDGE_FRET'; d: Step }
   | { type: 'ENTER_FINGERING' }
+  | { type: 'SET_SECTION_START' }
+  | { type: 'SET_SECTION_END' }
   | { type: 'CHOOSE_FINGER'; finger: Finger }
   | { type: 'CANCEL' }
   | { type: 'SET_FINGER'; finger: Finger }
@@ -201,6 +203,31 @@ function enterFingering(state: EditorState): EditorState {
   return to(state, { type: 'fingering', a: i, b: i, pos: inferPos([lead]) });
 }
 
+/**
+ * Move one edge of the loop section to column i. With no section yet, the other edge is the sheet's
+ * start or end; an edge set past the other one pushes that one back out to the sheet's start or end.
+ */
+function setSectionEdge(state: EditorState, edge: 'start' | 'end', i: number): EditorState {
+  const sheet = currentSheet(state);
+  const { events } = sheet;
+  if (!events[i]) return state;
+  const last = events.length - 1;
+  const cur = sectionRange(sheet);
+  let a = cur?.a ?? 0;
+  let b = cur?.b ?? last;
+  if (edge === 'start') {
+    a = i;
+    if (b < a) b = last;
+  } else {
+    b = i;
+    if (a > b) a = 0;
+  }
+  return patch(state, { section: { from: events[a]!.id, to: events[b]!.id } });
+}
+
+const sectionAtCursor = (edge: 'start' | 'end') => (state: EditorState) =>
+  setSectionEdge(state, edge, currentSheet(state).cursor);
+
 /* ---------- fingering mode ---------- */
 
 const notesBetween = (events: Column[], a: number, b: number): Note[] =>
@@ -267,6 +294,7 @@ const GLOBAL: Handlers<EditorState> = {
     return { ...state, doc: { sheets: [first!, ...others], currentId: first!.id }, mode: ADDING, undo: [] };
   },
   RENAME: (state, { title }) => patch(state, { title }),
+  CLEAR_SECTION: (state) => patch(state, { section: null }),
   SET_TEMPO: (state, { bpm }) =>
     patch(state, { bpm: Math.max(30, Math.min(260, Math.round(bpm) || currentSheet(state).bpm)) }),
   SET_DIVISION: (state, { div }) => patch(state, { div }),
@@ -286,11 +314,12 @@ const MODES: { [M in ModeType]: Handlers<In<M>> } = {
     TAP_FRET: (state, a) => tapFret(state, a, false),
     SELECT_COLUMN: selectColumn,
     INSERT_REST: (state) => insert(state, restEvent()),
-    INSERT_BAR: (state) => insert(state, barEvent()),
     DELETE: deleteAtCursor,
     MOVE_CURSOR: moveCursor,
     NUDGE_FRET: nudgeFret,
     ENTER_FINGERING: enterFingering,
+    SET_SECTION_START: sectionAtCursor('start'),
+    SET_SECTION_END: sectionAtCursor('end'),
   },
   picking: {
     CHOOSE_FINGER: (state, { finger }) => {
@@ -310,10 +339,14 @@ const MODES: { [M in ModeType]: Handlers<In<M>> } = {
     NUDGE_FRET: nudgeFret,
     MOVE_CURSOR: moveCursor,
     INSERT_REST: (state) => insert(state, restEvent()),
-    INSERT_BAR: (state) => insert(state, barEvent()),
     ENTER_FINGERING: enterFingering,
+    SET_SECTION_START: sectionAtCursor('start'),
+    SET_SECTION_END: sectionAtCursor('end'),
   },
   fingering: {
+    // the selected run's edges become the section's edges
+    SET_SECTION_START: (state) => setSectionEdge(state, 'start', state.mode.a),
+    SET_SECTION_END: (state) => setSectionEdge(state, 'end', state.mode.b),
     // like a date-range picker: with one note selected, tapping another selects the run between them
     SELECT_COLUMN: (state, { i, extend }) =>
       fxSelect(state, i, extend || (state.mode.a === state.mode.b && i !== state.mode.a)),

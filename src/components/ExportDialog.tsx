@@ -5,12 +5,10 @@ import type { Sheet } from '../music/types.ts';
 interface Props {
   sheet: Sheet;
   onClose: () => void;
-  onDeleteSheet: () => void;
 }
 
-export default function ExportDialog({ sheet, onClose, onDeleteSheet }: Props) {
+export default function ExportDialog({ sheet, onClose }: Props) {
   const [message, setMessage] = useState('');
-  const [deleteArmed, setDeleteArmed] = useState(false);
   const text = useRef<HTMLTextAreaElement>(null);
   const ascii = toAscii(sheet);
 
@@ -25,11 +23,6 @@ export default function ExportDialog({ sheet, onClose, onDeleteSheet }: Props) {
     }
   }
 
-  function deleteSheet() {
-    if (deleteArmed) onDeleteSheet();
-    else setDeleteArmed(true);
-  }
-
   return (
     <div className="overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="panel" role="dialog" aria-labelledby="expTitle">
@@ -42,9 +35,6 @@ export default function ExportDialog({ sheet, onClose, onDeleteSheet }: Props) {
           </button>
           <span className="toast">{message}</span>
           <span className="spacer" />
-          <button className="btn danger" onClick={deleteSheet}>
-            {deleteArmed ? 'Tap again to delete' : 'Delete sheet'}
-          </button>
           <button className="btn" onClick={onClose}>
             Close
           </button>

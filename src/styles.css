@@ -1,5 +1,6 @@
 /* Layout: one-screen instrument — tab sheet scrolls on top, control strip, rosewood fretboard docked at the bottom (high e on top, same as tab). */
 :root{
+  --loopc:#B7791F;
   --paper:#EEF2F3; --sheet:#FBFCFC; --ink:#172126; --muted:#5B6A71; --line:#B4C1C7;
   --accent:#2450C8; --accent-ink:#FFFFFF; --sel:#DCE5FB; --play:#FBE3A4; --warn:#C23A2B;
   --wood:#3A261D; --wood-2:#2E1E17; --fretwire:#C9CDD0; --nut:#ECE5D2; --string:#D9D4C7; --inlay:#E9E4D8;
@@ -13,9 +14,11 @@
   --paper:#101517; --sheet:#171E21; --ink:#E4EBEE; --muted:#93A2A9; --line:#3B474D;
   --accent:#86A3FF; --accent-ink:#0D1530; --sel:#22304F; --play:#4A3A12; --warn:#FF8F80;
   --f1:#78A8F5; --f2:#5CC796; --f3:#F29A5E; --f4:#DB86CD; --fT:#A5B0B6; --f0:#93A2A9;
+  --loopc:#E5B454;
 }}
 :root[data-theme="dark"]{
   color-scheme:dark;
+  --loopc:#E5B454;
   --paper:#101517; --sheet:#171E21; --ink:#E4EBEE; --muted:#93A2A9; --line:#3B474D;
   --accent:#86A3FF; --accent-ink:#0D1530; --sel:#22304F; --play:#4A3A12; --warn:#FF8F80;
   --f1:#78A8F5; --f2:#5CC796; --f3:#F29A5E; --f4:#DB86CD; --fT:#A5B0B6; --f0:#93A2A9;
@@ -31,7 +34,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
-.app{height:100%;display:grid;grid-template-rows:auto auto 1fr auto auto;
+/* Header, controls (setup + transport), tab and control strip stack at the top (tab and strip fixed height);
+   the fretboard takes the rest of the screen, so switching modes never moves anything. */
+.app{height:100%;min-height:min-content;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto auto minmax(0,1fr);
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
   max-width:1100px;margin:0 auto;}
 
@@ -39,11 +44,21 @@ button{cursor:pointer}
 header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding-block:14px 10px}
 .brand{font-family:var(--display);font-weight:800;font-stretch:118%;letter-spacing:-.01em;font-size:20px;margin:0}
 .brand span{color:var(--accent)}
-#title{flex:1 1 180px;min-width:0;border:0;border-bottom:1.5px solid var(--line);background:transparent;padding:6px 2px;font-weight:600;font-size:16px}
+/* title with its setup summary as a subtitle underneath */
+.titleblock{flex:1 1 180px;min-width:0;display:flex;flex-direction:column;align-items:flex-start}
+#title{width:100%;min-width:0;border:0;border-bottom:1.5px solid var(--line);background:transparent;padding:6px 2px;font-weight:600;font-size:16px}
 #title:focus{border-color:var(--accent);outline:none}
-.hgroup{display:flex;gap:8px;align-items:center}
+.hgroup{display:flex;gap:8px;align-items:center;flex:none}
+/* a select sizes to its longest option (sheet titles), so pin the menu's width */
+#sheetSel{width:6.5em}
 select,.btn{border:1.5px solid var(--line);background:var(--sheet);border-radius:8px;padding:7px 11px;font-size:14px;font-weight:600}
 .btn:hover{border-color:var(--muted)}
+/* our own chevron instead of the native arrow, with room on the right; drawn in theme colour */
+select{appearance:none;-webkit-appearance:none;padding-right:30px;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 52%,calc(100% - 11px) 52%;background-size:5px 5px;background-repeat:no-repeat}
+select:hover:not(:disabled){border-color:var(--muted)}
+select:disabled{cursor:default}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn:disabled{opacity:.4;cursor:default}
 
@@ -56,20 +71,48 @@ select,.btn{border:1.5px solid var(--line);background:var(--sheet);border-radius
 #bpm{width:3.6em;text-align:center;border:1.5px solid var(--line);border-radius:8px;padding:7px 2px;background:var(--sheet);font-family:var(--mono);font-weight:700;font-size:14px}
 .btn.sq{width:36px;padding-inline:0}
 .btn.toggle[aria-pressed="true"]{background:var(--sel);border-color:var(--accent);color:var(--accent)}
-.keyctl{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.keyctl select:disabled{opacity:.45}
-.num.ook{text-decoration:underline wavy var(--warn);text-decoration-thickness:1.5px;text-underline-offset:4px}
+/* the title's subtitle: a summary, or (open) the setup controls styled as subtitle text */
+.subtitle{display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px;padding-top:3px}
+.setup{display:contents}
+/* field-sizing: each dropdown is as wide as its current value, so the line reads like text */
+.setup select{field-sizing:content;border:0;border-radius:5px;background-color:transparent;color:var(--ink);font-size:12.5px;font-weight:600;
+  padding:2px 18px 2px 5px;background-position:calc(100% - 10px) 55%,calc(100% - 6px) 55%;background-size:4px 4px}
+.setup select:hover{background-color:var(--sel);border-color:transparent}
+.setup .sep{color:var(--muted);font-size:12.5px}
+.setup .btn.toggle{border:0;padding:2px 7px;font-size:12px;border-radius:999px;background:transparent;color:var(--muted)}
+.setup .btn.toggle[aria-pressed="true"]{background:var(--sel);color:var(--accent)}
+.setupchip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:none;
+  color:var(--muted);font-size:12.5px;font-weight:600;padding:3px 16px 0 2px;position:relative}
+.setupchip::after{content:"";position:absolute;right:3px;top:calc(50% + 1.5px);width:5px;height:5px;border:solid currentColor;border-width:0 1.5px 1.5px 0;
+  transform:translateY(-70%) rotate(45deg);transition:transform .15s}
+.setupchip[aria-expanded="true"]::after{transform:translateY(-30%) rotate(-135deg)}
+.setupchip:hover{color:var(--ink)}
+.setupchip.fold{width:22px;height:20px;padding:0;margin-left:2px}
+.setupchip.fold::after{right:8px}
+/* out-of-key note: a small dot under the number (colour is taken by the finger) */
+.num.ook{position:relative}
+.num.ook::after{content:"";position:absolute;left:50%;bottom:-5px;width:4px;height:4px;border-radius:50%;background:var(--warn);transform:translateX(-50%)}
 .warn{color:var(--warn);font-weight:700}
-.sdot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.28);pointer-events:none}
-.sdot.root{background:transparent;border:2px solid rgba(255,255,255,.7);width:11px;height:11px}
-.sdot.big{width:20px;height:20px;display:grid;place-items:center;font-family:var(--mono);font-size:11px;font-weight:700;color:rgba(255,255,255,.9);background:rgba(255,255,255,.16)}
-.sdot.big.root{border:2px solid rgba(255,255,255,.75);width:22px;height:22px}
+/* Fretboard marks, loudest to quietest: played note (.dot) > same pitch (.mark.same) > octave (.mark.octave) > in key (.sdot) > inlay. */
+.sdot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);pointer-events:none}
+.sdot.root{width:7px;height:7px;background:rgba(255,255,255,.45)}
+.sdot.big{width:auto;height:auto;background:none;font-family:var(--mono);font-size:11px;font-weight:700;color:rgba(255,255,255,.4)}
+.sdot.big.root{color:rgba(255,255,255,.75)}
 .fret.open .sdot{background:var(--line)}
-.fret.open .sdot.root{background:transparent;border-color:var(--muted)}
+.fret.open .sdot.root{background:var(--muted)}
+.fret.open .sdot.big{background:none;color:var(--muted)}
+.mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;z-index:3}
+.mark.same{width:26px;height:26px;border:2.5px solid rgba(255,255,255,.9)}
+.mark.octave{width:14px;height:14px;border:1.5px solid rgba(255,255,255,.5)}
+.fret.open :is(.dot,.mark,.sdot){left:32px}
+.fret.open .mark.same{border-color:var(--accent)}
+.fret.open .mark.octave{border-color:var(--muted)}
 
 /* tab sheet */
-.sheetwrap{overflow:auto;background:var(--sheet);border:1.5px solid var(--line);border-radius:10px;padding:18px 16px 22px;min-height:0}
-.staff{display:flex;flex-wrap:wrap;row-gap:26px;align-items:stretch}
+/* One long line that scrolls sideways; string labels stay pinned on the left. Horizontal padding lives on .staff/.labels so the sticky labels sit flush with the edge. */
+.sheetwrap{overflow-x:auto;overflow-y:hidden;background:var(--sheet);border:1.5px solid var(--line);border-radius:10px;padding:18px 0 22px;
+  scroll-padding-inline:48px 16px;-webkit-overflow-scrolling:touch}
+.staff{display:flex;flex-wrap:nowrap;align-items:stretch;width:max-content;min-width:100%;padding-right:16px}
 .col{display:flex;flex-direction:column;min-width:30px;position:relative;--colbg:var(--sheet);background:var(--colbg);border:0;padding:0;}
 .col.notes,.col.rest{cursor:pointer}
 .col.sel{--colbg:var(--sel)}
@@ -82,18 +125,26 @@ select,.btn{border:1.5px solid var(--line);background:var(--sheet);border-radius
   background:linear-gradient(to bottom,transparent calc(50% - .5px),var(--line) calc(50% - .5px),var(--line) calc(50% + .5px),transparent calc(50% + .5px));}
 .num{font-family:var(--mono);font-weight:700;font-size:15px;line-height:1;background:var(--colbg);padding:0 3px;display:inline-flex;align-items:baseline;font-variant-numeric:tabular-nums}
 .num sub{font-size:9.5px;font-weight:700;margin-left:1px;vertical-align:baseline;transform:translateY(3px)}
-.labels{min-width:22px;padding-right:6px;cursor:pointer}
+.labels{min-width:44px;padding:0 6px 0 16px;cursor:pointer;position:sticky;left:0;z-index:4;box-shadow:6px 0 6px -6px rgba(0,0,0,.25)}
 .labels .cell{background:none;justify-content:flex-start;font-family:var(--mono);font-size:13px;color:var(--muted);font-weight:700}
 .col.bar{min-width:10px;cursor:pointer}
 .col.bar .cell{position:relative}
 .col.bar .cell::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:var(--ink);transform:translateX(-50%)}
 .col.bar .cell:first-child::before{top:50%}
 .col.bar .cell:last-child::before{bottom:50%}
-.empty{color:var(--muted);font-size:14px;padding:8px 0 0 4px;max-width:40ch;line-height:1.5}
+/* loop section: a bar above its columns, with end caps */
+.col.loopsec::before{content:"";position:absolute;left:0;right:0;top:-12px;height:4px;background:var(--loopc)}
+.col.loopstart::before{left:3px;border-radius:2px 0 0 2px}
+.col.loopend::before{right:3px;border-radius:0 2px 2px 0}
+.col.loopstart.loopend::before{border-radius:2px}
+/* loop controls sit together at the right end of the transport row */
+.sectionctl{display:flex;gap:4px;align-items:center;margin-left:auto}
+.sectionctl .btn.sq{width:30px;font-family:var(--mono)}
+.empty{color:var(--muted);font-size:14px;padding:8px 0 0 4px;width:40ch;max-width:calc(100vw - 120px);line-height:1.5}
 [data-f="1"]{color:var(--f1)} [data-f="2"]{color:var(--f2)} [data-f="3"]{color:var(--f3)} [data-f="4"]{color:var(--f4)} [data-f="T"]{color:var(--fT)} [data-f="0"],[data-f=""]{color:var(--ink)}
 
 /* control strip */
-.strip{min-height:64px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-block:10px}
+.strip{min-height:118px;align-content:center;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-block:10px}
 .strip .hint{color:var(--muted);font-size:13px;margin-right:auto}
 .strip .hint b{color:var(--ink)}
 .picker{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}
@@ -103,6 +154,7 @@ select,.btn{border:1.5px solid var(--line);background:var(--sheet);border-radius
 .fbtn:hover{background:var(--sel)}
 .fbtn.cur{box-shadow:0 0 0 3px var(--paper),0 0 0 5px currentColor}
 .fbtn.none{font-size:13px;color:var(--muted);border-style:dashed}
+.btn.modeswitch{margin-left:10px}
 .cancel{border:0;background:none;color:var(--muted);font-weight:600;padding:8px}
 
 /* fingering mode */
@@ -110,19 +162,32 @@ select,.btn{border:1.5px solid var(--line);background:var(--sheet);border-radius
 .fx{display:flex;flex-direction:column;gap:10px;width:100%}
 .fxrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .fxrow .what{margin-right:auto;font-weight:700;font-size:14px;line-height:1.25}
-.fxrow .what small{display:block;font-weight:700;color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
-.posctl{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:3px;background:var(--sheet)}
-.posctl button{width:34px;height:34px;border-radius:50%;border:0;background:var(--sel);color:var(--accent);font-weight:800;font-size:17px}
+.fxrow .what small,.fxrow .what .modelabel{display:block;font-weight:700;color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.posctl{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:1px;background:var(--sheet)}
+.posctl button{width:28px;height:28px;border-radius:50%;border:0;background:var(--sel);color:var(--accent);font-weight:800;font-size:17px}
 .posctl span{font-size:13px;font-weight:600;padding-inline:4px;white-space:nowrap}
 .posctl b{font-family:var(--mono)}
-.fxhelp{font-size:12.5px;color:var(--muted);line-height:1.45;max-width:70ch}
+/* help behind a ? button: hover shows the title tooltip, click/tap opens a popover above the panel */
+.fxrow .what .modelabel{display:flex;align-items:center;gap:6px}
+.fxhelp{position:relative;text-transform:none;letter-spacing:0}
+.fxhelp summary{list-style:none;width:18px;height:18px;border-radius:50%;border:1.5px solid currentColor;
+  display:grid;place-items:center;font-weight:700;font-size:11px;line-height:1;cursor:pointer}
+.fxhelp summary::-webkit-details-marker{display:none}
+.fxhelp[open] summary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.fxpop{position:absolute;left:-8px;bottom:calc(100% + 8px);z-index:10;width:min(340px,calc(100vw - 32px));margin:0;padding:10px 12px;
+  background:var(--sheet);border:1.5px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.18);
+  font-size:12.5px;color:var(--muted);line-height:1.45}
 
 /* fretboard */
-.boardwrap{overflow-x:auto;padding-bottom:max(12px,env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}
-.board{display:grid;grid-template-columns:44px repeat(15,minmax(54px,1fr));grid-template-rows:repeat(6,40px) 22px;min-width:max-content;position:relative}
+.boardwrap{overflow-x:auto;overflow-y:hidden;padding-bottom:max(12px,env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch;
+  display:flex;flex-direction:column;min-height:0}
+/* strings stretch to fill the height, between a comfortable minimum and a cap for very tall windows */
+/* the open column is wide enough for the string letter plus a mark beside it */
+.board{flex:1;max-height:calc(6 * 64px + 22px);display:grid;grid-template-columns:60px repeat(15,minmax(54px,1fr));
+  grid-template-rows:repeat(6,minmax(36px,1fr)) 22px;min-width:max-content;position:relative}
 .board .wood{grid-column:2/-1;grid-row:1/7;background:linear-gradient(180deg,var(--wood),var(--wood-2));border-radius:0 6px 6px 0}
 .board .nutbar{grid-column:1;grid-row:1/7;justify-self:end;width:7px;background:var(--nut);border-radius:2px;z-index:1}
-.inlay{grid-row:1/7;align-self:center;justify-self:center;width:12px;height:12px;border-radius:50%;background:var(--inlay);opacity:.85;pointer-events:none}
+.inlay{grid-row:1/7;align-self:center;justify-self:center;width:12px;height:12px;border-radius:50%;background:var(--inlay);opacity:.22;pointer-events:none}
 .inlay.dbl{align-self:stretch;height:auto;width:12px;background:none;display:flex;flex-direction:column;justify-content:space-around;padding-block:46px}
 .inlay.dbl::before,.inlay.dbl::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--inlay)}
 .fret{position:relative;border:0;background:transparent;padding:0;z-index:2;border-right:3px solid var(--fretwire)}
@@ -143,7 +208,7 @@ select,.btn{border:1.5px solid var(--line);background:var(--sheet);border-radius
 .fnum.inbox{color:var(--accent);font-weight:700}
 @keyframes pulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
 @media (prefers-reduced-motion: reduce){.dot.pending{animation:none}}
-.slabel{position:absolute;left:4px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted);pointer-events:none}
+.slabel{position:absolute;left:2px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted);pointer-events:none}
 .fnum{grid-row:7;text-align:center;font-family:var(--mono);font-size:11px;color:var(--muted);align-self:end;font-variant-numeric:tabular-nums}
 
 /* export sheet */
@@ -156,4 +221,25 @@ select,.btn{border:1.5px solid var(--line);background:var(--sheet);border-radius
 .row .spacer{flex:1}
 .danger{color:#C23A2B;border-color:currentColor}
 .toast{font-size:13px;color:var(--muted)}
-@media (max-width:520px){.brand{font-size:18px}.fbtn{width:44px;height:44px}}
+/* phone: one-row header, tighter controls and a shorter neck, so the fretboard stays on screen in every mode */
+@media (max-width:520px){
+  .brand{display:none}
+  header{flex-wrap:nowrap;gap:8px;padding-block:10px 8px}
+  .titleblock{flex:1 1 auto}
+  #title{font-size:15px}
+  .setupchip{font-size:12px}
+  select,.btn{padding:6px 9px;font-size:13px}
+  select{padding-right:26px;background-position:calc(100% - 14px) 52%,calc(100% - 9px) 52%}
+  #bpm{padding:6px 2px;font-size:13px;width:3.2em}
+  .btn.sq{width:32px}
+  .playbtn{min-width:76px}
+  .tempo label{font-size:0;gap:0}
+  .transport{gap:6px;padding-block:0 8px}
+  .sheetwrap{padding-block:12px 14px}
+  .strip{min-height:0;padding-block:8px;gap:6px}
+  .fbtn{width:42px;height:42px;font-size:16px}
+  .fx{gap:8px}
+  .fxrow{gap:6px}
+  .fxrow .what{flex-basis:100%}
+  .board{grid-template-rows:repeat(6,minmax(32px,1fr)) 20px}
+}

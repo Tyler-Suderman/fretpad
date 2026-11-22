@@ -46,13 +46,12 @@ function AddingPanel({ sheet, canUndo, dispatch, editingRest = false }: PanelPro
           Insert after
         </Btn>
       )}
-      <Btn onClick={() => dispatch({ type: 'ENTER_FINGERING' })} disabled={!hasNotes(sheet.events)} title="Re-finger a run of notes (F)">
-        Fingering
-      </Btn>
       <Btn onClick={() => dispatch({ type: 'INSERT_REST' })} title="Add an empty beat (R)">Rest</Btn>
-      <Btn onClick={() => dispatch({ type: 'INSERT_BAR' })} title="Add a bar line (B)">Bar |</Btn>
       <Btn onClick={() => dispatch({ type: 'DELETE' })} disabled={sheet.cursor < 0} title="Delete selected (Backspace)">Delete</Btn>
       <Btn onClick={() => dispatch({ type: 'UNDO' })} disabled={!canUndo} title="Undo (Ctrl/⌘ Z)">Undo</Btn>
+      <Btn className="btn modeswitch" onClick={() => dispatch({ type: 'ENTER_FINGERING' })} disabled={!hasNotes(sheet.events)} title="Re-finger a run of notes (F)">
+        Reconfinger
+      </Btn>
     </>
   );
 }
@@ -89,7 +88,7 @@ function EditingPanel(props: PanelProps) {
         <FingerButtons current={n.finger} onPick={(finger) => dispatch({ type: 'SET_FINGER', finger })} />
       )}
       <Btn onClick={() => dispatch({ type: 'DELETE' })} title="Delete this note (Backspace)">Delete</Btn>
-      <Btn onClick={() => dispatch({ type: 'ENTER_FINGERING' })} title="Re-finger a run of notes (F)">Fingering mode</Btn>
+      <Btn onClick={() => dispatch({ type: 'ENTER_FINGERING' })} title="Re-finger a run of notes (F)">Reconfinger</Btn>
       <Btn primary onClick={() => dispatch({ type: 'DONE' })} title="Add new notes after this one (Esc)">Done</Btn>
     </div>
   );
@@ -104,12 +103,21 @@ function FingeringPanel({ mode, sheet, playing, canUndo, onPlayRange, dispatch }
   const allNotes = events.flatMap((e, i) => (e.kind === 'notes' ? [i] : []));
   const lead = leadNote(events[mode.a]);
   const key = keyName(sheet.key);
+  const help = single
+    ? `Tap another note in the tab to select a run. Rings on the fretboard are the same pitch on other strings, with the finger to use there; the solid ring fits the notes around it best. Tap one to move the note there. Picking a finger moves on to the next note.${scale ? ' Numbered dots inside the box are the scale under your hand.' : ''}`
+    : 'Use − and + to slide the hand along the neck. The notes keep their pitch, change string and fret to stay under your hand, and get one finger per fret. You can also tap a fret to put your first finger there.';
 
   return (
     <div className="fx">
       <div className="fxrow">
         <div className="what">
-          <small>Fingering mode</small>
+          <div className="modelabel">
+            Reconfinger
+            <details className="fxhelp">
+              <summary aria-label="How Reconfinger works" title={help}>?</summary>
+              <div className="fxpop">{help}</div>
+            </details>
+          </div>
           {single && lead ? (
             <>
               Note {allNotes.indexOf(mode.a) + 1} of {allNotes.length} · {where(lead)}
@@ -132,7 +140,7 @@ function FingeringPanel({ mode, sheet, playing, canUndo, onPlayRange, dispatch }
         <Btn onClick={() => dispatch({ type: 'FIT' })} title="Move the selected notes under the hand and set fingers">Fit to hand</Btn>
         <Btn onClick={onPlayRange}>{playing ? 'Stop' : 'Play selection'}</Btn>
         <Btn onClick={() => dispatch({ type: 'UNDO' })} disabled={!canUndo}>Undo</Btn>
-        <Btn primary onClick={() => dispatch({ type: 'EXIT' })} title="Leave fingering mode (Esc)">Done</Btn>
+        <Btn primary onClick={() => dispatch({ type: 'EXIT' })} title="Leave Reconfinger (Esc)">Done</Btn>
       </div>
 
       {single && lead && (
@@ -144,15 +152,8 @@ function FingeringPanel({ mode, sheet, playing, canUndo, onPlayRange, dispatch }
             <FingerButtons current={lead.finger} allowNone={false} onPick={(finger) => dispatch({ type: 'SET_FINGER', finger })} />
           )}
           <button className="btn sq" aria-label="Next note" onClick={() => dispatch({ type: 'STEP', d: 1 })}>›</button>
-          <span className="hint">Picking a finger moves on to the next note.</span>
         </div>
       )}
-
-      <div className="fxhelp">
-        {single
-          ? `Tap another note in the tab to select a run. Rings on the fretboard are the same pitch on other strings, with the finger to use there; the solid ring fits the notes around it best. Tap one to move the note there.${scale ? ' Numbered dots inside the box are the scale under your hand.' : ''}`
-          : 'Use − and + to slide the hand along the neck. The notes keep their pitch, change string and fret to stay under your hand, and get one finger per fret. You can also tap a fret to put your first finger there.'}
-      </div>
     </div>
   );
 }

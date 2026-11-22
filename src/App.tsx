@@ -3,15 +3,16 @@ import { usePlayback } from './audio/usePlayback.ts';
 import ExportDialog from './components/ExportDialog.tsx';
 import Fretboard from './components/Fretboard.tsx';
 import Header from './components/Header.tsx';
+import SetupBar from './components/SetupBar.tsx';
 import ModePanel from './components/ModePanel.tsx';
 import Staff from './components/Staff.tsx';
 import Transport from './components/Transport.tsx';
-import { leadNote } from './music/tab.ts';
+import { leadNote, sectionRange } from './music/tab.ts';
 import { midiAt, midiOf } from './music/theory.ts';
 import { accepts, createEditorState, currentSheet, editorReducer } from './state/editor.ts';
 import { keyToAction } from './state/keymap.ts';
 import { loadSaved, save } from './state/storage.ts';
-import { fretboardView, staffView } from './state/views.ts';
+import { fretboardView, setupSummary, staffView } from './state/views.ts';
 import './styles.css';
 
 const isTyping = (target: EventTarget | null): boolean =>
@@ -22,6 +23,9 @@ export default function App() {
   const [exportOpen, setExportOpen] = useState(false);
   const { doc, settings, mode } = state;
   const sheet = currentSheet(state);
+  // Setup row: open by default until the sheet has a key; an explicit open/close sticks for that sheet.
+  const [setupPref, setSetupPref] = useState<{ id: string; open: boolean } | null>(null);
+  const setupOpen = setupPref?.id === sheet.id ? setupPref.open : !sheet.key;
   const playback = usePlayback(sheet, settings);
   const { stop } = playback;
 
@@ -31,6 +35,8 @@ export default function App() {
   function togglePlay() {
     if (playback.playing) return playback.stop();
     if (mode.type === 'fingering') return playback.start({ range: { a: mode.a, b: mode.b } });
+    const section = sectionRange(sheet);
+    if (section) return playback.start({ range: section }); // repeats when Loop is on, plays once when off
     const from = sheet.cursor >= 0 && sheet.cursor < sheet.events.length - 1 ? sheet.cursor : 0;
     playback.start({ from });
   }
@@ -43,7 +49,9 @@ export default function App() {
 
   function selectColumn(i: number, extend = false) {
     const note = leadNote(sheet.events[i]);
-    if (note && !extend) playback.preview(midiOf(note));
+    // a second tap on the note being edited just moves the cursor after it, so it stays silent
+    const tappedAgain = mode.type === 'editing' && sheet.cursor === i;
+    if (note && !extend && !tappedAgain) playback.preview(midiOf(note));
     dispatch({ type: 'SELECT_COLUMN', i, extend });
   }
 
@@ -73,7 +81,25 @@ export default function App() {
 
   return (
     <div className={mode.type === 'fingering' ? 'app fingering' : 'app'}>
-      <Header sheets={doc.sheets} sheet={sheet} dispatch={dispatch} onExport={() => setExportOpen(true)} />
+      <Header
+        sheets={doc.sheets}
+        sheet={sheet}
+        dispatch={dispatch}
+        onExport={() => setExportOpen(true)}
+        setupSummary={setupSummary(sheet)}
+        setup={
+          setupOpen && (
+            <SetupBar
+              sheet={sheet}
+              settings={settings}
+              dispatch={dispatch}
+              onTouch={() => setSetupPref((p) => (p?.id === sheet.id ? p : { id: sheet.id, open: true }))}
+              onDone={() => setSetupPref({ id: sheet.id, open: false })}
+            />
+          )
+        }
+        onToggleSetup={() => setSetupPref({ id: sheet.id, open: !setupOpen })}
+      />
       <Transport sheet={sheet} settings={settings} playing={playback.playing} onTogglePlay={togglePlay} dispatch={dispatch} />
       <Staff view={staffView(state, playback.playingIndex)} onSelect={selectColumn} />
       <ModePanel
@@ -86,14 +112,7 @@ export default function App() {
       />
       <Fretboard view={fretboardView(state, playback.playingIndex)} onTap={tapFret} />
       {exportOpen && (
-        <ExportDialog
-          sheet={sheet}
-          onClose={() => setExportOpen(false)}
-          onDeleteSheet={() => {
-            dispatch({ type: 'DELETE_SHEET' });
-            setExportOpen(false);
-          }}
-        />
+        <ExportDialog sheet={sheet} onClose={() => setExportOpen(false)} />
       )}
     </div>
   );

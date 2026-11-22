@@ -17,10 +17,12 @@ npm run build    # type-checks, then builds the static site in dist/
 
 - **Add notes:** tap a fret, then a finger (1–4, T, or none). Open strings go straight in.
 - **Edit:** tap a note in the tab to change its finger or tap a fret to move it.
-- **Fingering mode** (F): tap the first and last notes of a run, then slide the hand with − / +. Notes keep their pitch, move under your hand and get one finger per fret. Rings show the same pitch on other strings, with the best fit solid.
-- **Key and mode:** shows the scale on the neck and flags notes outside the key.
+- **Reconfinger** (F): tap the first and last notes of a run, then slide the hand with − / +. Notes keep their pitch, move under your hand and get one finger per fret. Rings show the same pitch on other strings, with the best fit solid.
+- **Key and mode:** shows the scale on the neck and flags notes outside the key. Key, mode and note value sit under the title as a summary (e.g. "A Dorian · ♪ eighths"); click it to edit them in place. It opens by itself for a sheet with no key and folds back once the mode is picked.
 - **Playback:** tempo, note value per column, loop and metronome click. Space plays.
-- Sheets save in your browser's local storage. **Export** gives plain-text tab with a fingering row.
+- **Loop section:** select a column and press **[** to start a section there or **]** to end it (or use the [ ] buttons by Loop). In Reconfinger the brackets take the selected run. Play then covers just the section, repeating if Loop is on; **×** clears it. Saved with the sheet.
+- **Sheets** menu: switch, add or delete sheets. They save in your browser's local storage. **Export** gives plain-text tab with a fingering row.
+- Bar lines from older sheets still show and can be deleted, but there's no tool to add new ones.
 
 ## How the code is organised
 
@@ -49,7 +51,7 @@ prototype/      the original single-file version, kept for reference
 
 ### Editor modes
 
-The editor is a reducer with explicit modes. `Mode` and `Action` are discriminated unions, and each mode's handler table is typed against that mode, so handlers get narrowed state. Each mode lists the actions it accepts; anything else is ignored.
+The editor is a reducer with explicit modes. `Mode` and `Action` are discriminated unions, and each mode's handler table is typed against that mode, so handlers get narrowed state. Each mode lists the actions it accepts; anything else is ignored. The `fingering` mode is what the UI calls Reconfinger.
 
 ```mermaid
 stateDiagram-v2

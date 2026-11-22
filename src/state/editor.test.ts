@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { leadNote, newSheet, noteEvent } from '../music/tab.ts';
+import { leadNote, newSheet, noteEvent, sectionRange } from '../music/tab.ts';
 import { midiOf } from '../music/theory.ts';
 import type { Note } from '../music/types.ts';
 import { accepts, createEditorState, currentSheet, editorReducer } from './editor.ts';
@@ -137,5 +137,55 @@ describe('storage', () => {
   it('returns null for missing or broken data', () => {
     expect(parseSaved(null)).toBeNull();
     expect(parseSaved('{oops')).toBeNull();
+  });
+});
+
+describe('loop section', () => {
+  // five notes on the low E string, cursor on the last
+  const five = (): EditorState =>
+    run(
+      blank(),
+      ...[1, 2, 3, 4, 5].flatMap((f): Action[] => [
+        { type: 'TAP_FRET', s: 5, f },
+        { type: 'CHOOSE_FINGER', finger: '1' },
+      ]),
+    );
+  const range = (state: EditorState) => sectionRange(sheet(state));
+  const at = (state: EditorState, i: number) => run(state, { type: 'SELECT_COLUMN', i }, { type: 'DONE' });
+
+  it('a start alone runs to the end; an end alone runs from the beginning', () => {
+    expect(range(run(at(five(), 1), { type: 'SET_SECTION_START' }))).toEqual({ a: 1, b: 4 });
+    expect(range(run(at(five(), 2), { type: 'SET_SECTION_END' }))).toEqual({ a: 0, b: 2 });
+  });
+
+  it('start then end makes a section; an edge past the other pushes it back out', () => {
+    let state = run(at(five(), 1), { type: 'SET_SECTION_START' });
+    state = run(at(state, 3), { type: 'SET_SECTION_END' });
+    expect(range(state)).toEqual({ a: 1, b: 3 });
+    state = run(at(state, 4), { type: 'SET_SECTION_START' });
+    expect(range(state)).toEqual({ a: 4, b: 4 });
+  });
+
+  it('follows its columns when notes are added before it, and clears', () => {
+    let state = run(at(five(), 2), { type: 'SET_SECTION_START' });
+    state = run(at(state, 0), { type: 'TAP_FRET', s: 4, f: 0 }); // open A inserted after column 0
+    expect(range(state)).toEqual({ a: 3, b: 5 });
+    expect(range(run(state, { type: 'CLEAR_SECTION' }))).toBeNull();
+  });
+
+  it('is gone if one of its edge columns is deleted', () => {
+    const state = run(at(five(), 4), { type: 'SET_SECTION_END' }, { type: 'DELETE' });
+    expect(range(state)).toBeNull();
+  });
+
+  it('in Reconfinger, the brackets take the selected run', () => {
+    const state = run(
+      at(five(), 1),
+      { type: 'ENTER_FINGERING' },
+      { type: 'SELECT_COLUMN', i: 3 },
+      { type: 'SET_SECTION_START' },
+      { type: 'SET_SECTION_END' },
+    );
+    expect(range(state)).toEqual({ a: 1, b: 3 });
   });
 });
