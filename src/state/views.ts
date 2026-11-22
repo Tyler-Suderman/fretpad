@@ -1,9 +1,8 @@
 // View models: derive what each part of the screen shows from editor state. Pure.
-import { alternativesFor } from '../music/fingering.ts';
-import { isNotes, leadNote, neighbourNotes, noteIndicesBetween, sectionRange } from '../music/tab.ts';
+import { isNotes, sectionRange } from '../music/tab.ts';
 import { keyName, midiAt, midiOf, scaleOf } from '../music/theory.ts';
 import type { Scale } from '../music/theory.ts';
-import type { Alternative, Column, Division, Key, Note, Sheet } from '../music/types.ts';
+import type { Column, Division, Key, Note, Sheet } from '../music/types.ts';
 import { currentSheet } from './editor.ts';
 import type { EditorState } from './editor.ts';
 
@@ -30,7 +29,6 @@ export interface StaffColumn {
   kind: Column['kind'];
   notes: StaffNote[];
   selected: boolean;
-  inRange: boolean;
   editing: boolean;
   playing: boolean;
   /** Inside the loop section, and whether it is the section's first or last column. */
@@ -80,9 +78,8 @@ export function staffView(state: EditorState, playingIndex: number): StaffView {
       id: ev.id,
       kind: ev.kind,
       notes: isNotes(ev) ? ev.notes.map((n) => ({ ...n, outOfKey: scale !== null && !scale.has(midiOf(n) % 12) })) : [],
-      selected: mode.type !== 'fingering' && i === sheet.cursor,
-      inRange: mode.type === 'fingering' && i >= mode.a && i <= mode.b,
-      editing: mode.type === 'fingering' ? mode.a === mode.b && i === mode.a : mode.type === 'editing' && i === sheet.cursor,
+      selected: i === sheet.cursor,
+      editing: mode.type === 'editing' && i === sheet.cursor,
       playing: i === playingIndex,
       inSection: section !== null && i >= section.a && i <= section.b,
       sectionStart: section?.a === i,
@@ -91,23 +88,20 @@ export function staffView(state: EditorState, playingIndex: number): StaffView {
       measureStart: measures.has(i),
     }),
   );
-  return { columns, startSelected: mode.type !== 'fingering' && sheet.cursor === -1, key: sheet.key };
+  return { columns, startSelected: sheet.cursor === -1, key: sheet.key };
 }
 
 export interface FretboardView {
   shown: readonly Note[];
   /** A tapped fret waiting for a finger, with the suggested finger. */
   pending: Note | null;
-  alternatives: Alternative[];
-  /** Fret under finger 1 in fingering mode, else null. */
-  hand: number | null;
   /** Pitch (MIDI) of the one note in focus (tapped, selected or playing); same-pitch spots and octaves are marked against it. */
   focus: number | null;
   scale: Scale | null;
   root: number | null;
 }
 
-/** What the fretboard marks: notes shown, a pending tap, same-pitch alternatives, the hand box, the scale. */
+/** What the fretboard marks: notes shown, a pending tap, same-pitch spots and octaves, the scale. */
 export function fretboardView(state: EditorState, playingIndex: number): FretboardView {
   const sheet = currentSheet(state);
   const { mode } = state;
@@ -119,8 +113,6 @@ export function fretboardView(state: EditorState, playingIndex: number): Fretboa
   const view: FretboardView = {
     shown: [],
     pending: null,
-    alternatives: [],
-    hand: mode.type === 'fingering' ? mode.pos : null,
     focus: null,
     scale: state.settings.showScale ? scaleOf(sheet.key) : null,
     root: sheet.key?.root ?? null,
@@ -128,13 +120,6 @@ export function fretboardView(state: EditorState, playingIndex: number): Fretboa
 
   if (playingIndex >= 0) {
     view.shown = notesAt(playingIndex);
-  } else if (mode.type === 'fingering') {
-    const shown = noteIndicesBetween(events, mode.a, mode.b).flatMap((i) => leadNote(events[i]) ?? []);
-    view.shown = shown;
-    const only = shown[0];
-    if (mode.a === mode.b && only) {
-      view.alternatives = alternativesFor(only, neighbourNotes(events, mode.a), mode.pos, scaleOf(sheet.key));
-    }
   } else {
     view.shown = notesAt(sheet.cursor);
     if (mode.type === 'picking') view.pending = { s: mode.s, f: mode.f, finger: mode.suggest };

@@ -4,27 +4,23 @@
 //   adding     tapping a fret adds a note after the cursor
 //   picking    a fret was tapped; waiting for a finger   { s, f, replace, suggest }
 //   editing    a placed note/rest is selected; a fret tap replaces it, a finger changes it
-//   fingering  re-finger a run of notes keeping pitches  { a, b, pos }  (columns a..b, hand at fret pos)
 //
 // Each mode lists the actions it accepts, and its handlers receive state narrowed to that mode.
 // An action a mode does not list is ignored, so UI states can't leak into each other.
 // GLOBAL actions work in every mode.
 import type { PlaybackSettings } from '../audio/player.ts';
-import { alternativesFor, clampPos, fingerFor, fitRun, inBox, inferPos, suggestFinger } from '../music/fingering.ts';
+import { suggestFinger } from '../music/fingering.ts';
 import {
   isNotes,
   isReplaceable,
   leadNote,
-  neighbourNotes,
   newSheet,
   noteEvent,
-  noteIndicesBetween,
   restEvent,
   sampleSheet,
   sectionRange,
-  stepToNote,
 } from '../music/tab.ts';
-import { FRETS, OPEN, midiAt, midiOf, scaleOf } from '../music/theory.ts';
+import { FRETS, OPEN } from '../music/theory.ts';
 import type { Column, Division, Finger, FingeringSystem, Key, Note, Sheet } from '../music/types.ts';
 
 /* ---------- types ---------- */
@@ -32,8 +28,7 @@ import type { Column, Division, Finger, FingeringSystem, Key, Note, Sheet } from
 export type Mode =
   | { type: 'adding' }
   | { type: 'picking'; s: number; f: number; replace: boolean; suggest: Finger }
-  | { type: 'editing' }
-  | { type: 'fingering'; a: number; b: number; pos: number };
+  | { type: 'editing' };
 export type ModeType = Mode['type'];
 
 export interface Settings extends PlaybackSettings {
@@ -76,19 +71,13 @@ export type Action =
   | { type: 'DELETE' }
   | { type: 'MOVE_CURSOR'; d: Step }
   | { type: 'NUDGE_FRET'; d: Step }
-  | { type: 'ENTER_FINGERING' }
   | { type: 'SET_SECTION_START' }
   | { type: 'SET_SECTION_END' }
   | { type: 'CHOOSE_FINGER'; finger: Finger }
   | { type: 'ACCEPT_SUGGESTION' }
   | { type: 'CANCEL' }
   | { type: 'SET_FINGER'; finger: Finger }
-  | { type: 'DONE' }
-  // fingering
-  | { type: 'STEP'; d: Step; extend?: boolean }
-  | { type: 'SHIFT_HAND'; d: number }
-  | { type: 'FIT' }
-  | { type: 'EXIT' };
+  | { type: 'DONE' };
 export type ActionType = Action['type'];
 
 type ActionOf<T extends ActionType> = Extract<Action, { type: T }>;
@@ -211,14 +200,6 @@ function tapFret(state: EditorState, { s, f }: ActionOf<'TAP_FRET'>, replace: bo
   return to(state, { type: 'picking', s, f, replace, suggest });
 }
 
-function enterFingering(state: EditorState): EditorState {
-  const { events, cursor } = currentSheet(state);
-  const i = isNotes(events[cursor]) ? cursor : events.findIndex(isNotes);
-  const lead = leadNote(events[i]);
-  if (!lead) return state;
-  return to(state, { type: 'fingering', a: i, b: i, pos: inferPos([lead]) });
-}
-
 /**
  * Pin one edge of the loop section to column i. An edge never set stays open (the sheet's start or end, so the
  * section grows as notes are added past it); a pinned edge crossed by the new one is reopened. Setting the end
@@ -246,58 +227,6 @@ function setSectionEdge(state: EditorState, edge: 'start' | 'end', i: number): E
 const sectionAtCursor = (edge: 'start' | 'end') => (state: EditorState) =>
   setSectionEdge(state, edge, currentSheet(state).cursor);
 
-/* ---------- fingering mode ---------- */
-
-const notesBetween = (events: Column[], a: number, b: number): Note[] =>
-  noteIndicesBetween(events, a, b).flatMap((j) => leadNote(events[j]) ?? []);
-
-function fxSelect(state: In<'fingering'>, i: number, extend = false): EditorState {
-  const { events } = currentSheet(state);
-  if (!isNotes(events[i])) return state;
-  const a = extend ? Math.min(state.mode.a, i) : i;
-  const b = extend ? Math.max(state.mode.b, i) : i;
-  return to(state, { ...state.mode, a, b, pos: inferPos(notesBetween(events, a, b)) });
-}
-
-function fxFit(state: In<'fingering'>, pos: number): EditorState {
-  const { a, b } = state.mode;
-  const hand = clampPos(pos);
-  const next = change(state, (d) => {
-    const idx = noteIndicesBetween(d.events, a, b);
-    const moved = fitRun(notesBetween(d.events, a, b), hand);
-    idx.forEach((j, k) => {
-      const n = moved[k];
-      if (n) setLead(d, j, n);
-    });
-  });
-  return to(next, { ...state.mode, pos: hand });
-}
-
-function fxTapFret(state: In<'fingering'>, { s, f }: ActionOf<'TAP_FRET'>): EditorState {
-  const m = state.mode;
-  if (m.a !== m.b) return f > 0 ? fxFit(state, f) : state; // with a run selected, a fret tap sets finger 1 there
-  const sheet = currentSheet(state);
-  const note = leadNote(sheet.events[m.a]);
-  if (!note) return state;
-  const samePitch = midiAt(s, f) === midiOf(note) && !(s === note.s && f === note.f);
-  const alt = samePitch
-    ? alternativesFor(note, neighbourNotes(sheet.events, m.a), m.pos, scaleOf(sheet.key)).find(
-        (o) => o.s === s && o.f === f,
-      )
-    : undefined;
-  const finger: Finger = alt ? alt.finger : f === 0 ? OPEN : inBox(f, m.pos) ? fingerFor(f, m.pos) : '';
-  const next = change(state, (d) => setLead(d, m.a, { s, f, finger }));
-  return to(next, { ...m, pos: alt ? alt.pos : m.pos });
-}
-
-function fxSetFinger(state: In<'fingering'>, { finger }: ActionOf<'SET_FINGER'>): EditorState {
-  const { a, b } = state.mode;
-  if (a !== b) return state;
-  const next = setLeadFinger(state, a, finger) as In<'fingering'>; // mode is unchanged by an edit
-  const j = stepToNote(currentSheet(next).events, a, 1); // walk forward through the passage
-  return j < 0 ? next : fxSelect(next, j);
-}
-
 /* ---------- the machine ---------- */
 
 const GLOBAL: Handlers<EditorState> = {
@@ -322,9 +251,7 @@ const GLOBAL: Handlers<EditorState> = {
   UNDO: (state) => {
     const last = state.undo[state.undo.length - 1];
     if (!last) return state;
-    const next = { ...patch(state, last), undo: state.undo.slice(0, -1) };
-    const keepFingering = state.mode.type === 'fingering' && state.mode.b < last.events.length;
-    return keepFingering ? next : to(next, ADDING);
+    return to({ ...patch(state, last), undo: state.undo.slice(0, -1) }, ADDING);
   },
 };
 
@@ -336,7 +263,6 @@ const MODES: { [M in ModeType]: Handlers<In<M>> } = {
     DELETE: deleteAtCursor,
     MOVE_CURSOR: moveCursor,
     NUDGE_FRET: nudgeFret,
-    ENTER_FINGERING: enterFingering,
     SET_SECTION_START: sectionAtCursor('start'),
     SET_SECTION_END: sectionAtCursor('end'),
   },
@@ -362,26 +288,8 @@ const MODES: { [M in ModeType]: Handlers<In<M>> } = {
     NUDGE_FRET: nudgeFret,
     MOVE_CURSOR: moveCursor,
     INSERT_REST: (state) => insert(state, restEvent()),
-    ENTER_FINGERING: enterFingering,
     SET_SECTION_START: sectionAtCursor('start'),
     SET_SECTION_END: sectionAtCursor('end'),
-  },
-  fingering: {
-    // the selected run's edges become the section's edges
-    SET_SECTION_START: (state) => setSectionEdge(state, 'start', state.mode.a),
-    SET_SECTION_END: (state) => setSectionEdge(state, 'end', state.mode.b),
-    // like a date-range picker: with one note selected, tapping another selects the run between them
-    SELECT_COLUMN: (state, { i, extend }) =>
-      fxSelect(state, i, extend || (state.mode.a === state.mode.b && i !== state.mode.a)),
-    STEP: (state, { d, extend }) => {
-      const j = stepToNote(currentSheet(state).events, d > 0 ? state.mode.b : state.mode.a, d);
-      return j < 0 ? state : fxSelect(state, j, extend);
-    },
-    SHIFT_HAND: (state, { d }) => fxFit(state, state.mode.pos + d),
-    FIT: (state) => fxFit(state, state.mode.pos),
-    TAP_FRET: fxTapFret,
-    SET_FINGER: fxSetFinger,
-    EXIT: (state) => to(patch(state, { cursor: state.mode.b }), ADDING),
   },
 };
 

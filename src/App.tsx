@@ -34,7 +34,6 @@ export default function App() {
 
   function togglePlay() {
     if (playback.playing) return playback.stop();
-    if (mode.type === 'fingering') return playback.start({ range: { a: mode.a, b: mode.b } });
     const section = sectionRange(sheet);
     if (section) return playback.start({ range: section }); // repeats when Loop is on, plays once when off
     const from = sheet.cursor >= 0 && sheet.cursor < sheet.events.length - 1 ? sheet.cursor : 0;
@@ -80,7 +79,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className={mode.type === 'fingering' ? 'app fingering' : 'app'}>
+    <div className="app">
       <Header
         sheets={doc.sheets}
         sheet={sheet}
@@ -106,8 +105,6 @@ export default function App() {
         mode={mode}
         sheet={sheet}
         canUndo={state.undo.length > 0}
-        playing={playback.playing}
-        onPlayRange={togglePlay}
         dispatch={dispatch}
       />
       <Fretboard view={fretboardView(state, playback.playingIndex)} onTap={tapFret} />

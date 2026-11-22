@@ -1,22 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { toAscii } from './ascii.ts';
-import { barEvent, neighbourNotes, newSheet, noteEvent, restEvent, sampleSheet, stepToNote } from './tab.ts';
+import { barEvent, newSheet, noteEvent, restEvent, sampleSheet } from './tab.ts';
 
 describe('tab model', () => {
   it('stores open strings with the open finger', () => {
     expect(noteEvent(2, 0, '3').notes[0].finger).toBe('0');
-  });
-
-  it('steps between note columns, skipping bars and rests', () => {
-    const events = [noteEvent(0, 1, '1'), barEvent(), restEvent(), noteEvent(0, 3, '3')];
-    expect(stepToNote(events, 0, 1)).toBe(3);
-    expect(stepToNote(events, 3, -1)).toBe(0);
-    expect(stepToNote(events, 3, 1)).toBe(-1);
-  });
-
-  it('collects neighbouring notes either side', () => {
-    const events = [1, 2, 3, 4, 5].map((f) => noteEvent(0, f, ''));
-    expect(neighbourNotes(events, 2, 1).map((n) => n.f)).toEqual([2, 4]);
   });
 
   it('builds the sample warm-up', () => {

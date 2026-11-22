@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { leadNote, newSheet, noteEvent, sectionRange } from '../music/tab.ts';
-import { midiOf } from '../music/theory.ts';
 import type { Note } from '../music/types.ts';
 import { accepts, createEditorState, currentSheet, editorReducer } from './editor.ts';
 import type { Action, EditorState } from './editor.ts';
@@ -11,7 +10,6 @@ const blank = (): EditorState => createEditorState({ sheets: [newSheet('Test')] 
 const sheet = (state: EditorState) => currentSheet(state);
 /** Lead note of column i (null for rests, bars and missing columns). */
 const lead = (state: EditorState, i: number): Note | null => leadNote(sheet(state).events[i]);
-const leads = (state: EditorState): Note[] => sheet(state).events.flatMap((e) => leadNote(e) ?? []);
 
 describe('adding notes', () => {
   it('tap fret → pick finger → note is added after the cursor', () => {
@@ -82,39 +80,6 @@ describe('editing a placed note', () => {
     const before = twoNotes();
     const s = run(before, { type: 'SELECT_COLUMN', i: 0 }, { type: 'DELETE' }, { type: 'UNDO' });
     expect(sheet(s).events).toEqual(sheet(before).events);
-  });
-});
-
-describe('fingering mode', () => {
-  const runSheet = () => {
-    const sh = newSheet('Run');
-    sh.events = [noteEvent(5, 3, ''), noteEvent(5, 5, ''), noteEvent(4, 2, ''), noteEvent(4, 3, '')];
-    sh.cursor = 0;
-    return createEditorState({ sheets: [sh] });
-  };
-
-  it('selects a run like a range picker', () => {
-    const s = run(runSheet(), { type: 'ENTER_FINGERING' }, { type: 'SELECT_COLUMN', i: 3 });
-    expect(s.mode).toMatchObject({ type: 'fingering', a: 0, b: 3 });
-  });
-
-  it('shifting the hand keeps pitches and re-fingers', () => {
-    const start = runSheet();
-    const s = run(start, { type: 'ENTER_FINGERING' }, { type: 'SELECT_COLUMN', i: 3 }, { type: 'SHIFT_HAND', d: 4 });
-    expect(leads(s).map(midiOf)).toEqual(leads(start).map(midiOf));
-    expect(leads(s).every((n) => n.finger !== '')).toBe(true);
-  });
-
-  it('setting a finger walks to the next note', () => {
-    const s = run(runSheet(), { type: 'ENTER_FINGERING' }, { type: 'SET_FINGER', finger: '2' });
-    expect(lead(s, 0)?.finger).toBe('2');
-    expect(s.mode).toMatchObject({ a: 1, b: 1 });
-  });
-
-  it('exit returns to adding with the cursor at the end of the selection', () => {
-    const s = run(runSheet(), { type: 'ENTER_FINGERING' }, { type: 'SELECT_COLUMN', i: 2 }, { type: 'EXIT' });
-    expect(s.mode.type).toBe('adding');
-    expect(sheet(s).cursor).toBe(2);
   });
 });
 
@@ -213,17 +178,6 @@ describe('loop section', () => {
     let state = run(at(five(), 2), { type: 'SET_SECTION_END' });
     state = run(state, { type: 'SELECT_COLUMN', i: -1 }, { type: 'TAP_FRET', s: 4, f: 0 });
     expect(range(state)).toEqual({ a: 0, b: 3 });
-  });
-
-  it('in Reconfinger, the brackets take the selected run', () => {
-    const state = run(
-      at(five(), 1),
-      { type: 'ENTER_FINGERING' },
-      { type: 'SELECT_COLUMN', i: 3 },
-      { type: 'SET_SECTION_START' },
-      { type: 'SET_SECTION_END' },
-    );
-    expect(range(state)).toEqual({ a: 1, b: 3 });
   });
 });
 

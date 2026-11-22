@@ -13,7 +13,6 @@ const key = (k: string, extra: Partial<{ shiftKey: boolean; metaKey: boolean }> 
 const adding: Mode = { type: 'adding' };
 const editing: Mode = { type: 'editing' };
 const picking: Mode = { type: 'picking', s: 2, f: 5, replace: false, suggest: '1' };
-const fingering: Mode = { type: 'fingering', a: 0, b: 0, pos: 5 };
 
 describe('keyToAction', () => {
   it('maps finger keys per mode', () => {
@@ -27,11 +26,7 @@ describe('keyToAction', () => {
     expect(keyToAction(key(' '), picking)).toBeNull();
   });
 
-  it('arrows step and extend in fingering mode', () => {
-    expect(keyToAction(key('ArrowRight', { shiftKey: true }), fingering)).toEqual({ type: 'STEP', d: 1, extend: true });
-  });
-
   it('undo works everywhere', () => {
-    expect(keyToAction(key('z', { metaKey: true }), fingering)).toEqual({ type: 'UNDO' });
+    expect(keyToAction(key('z', { metaKey: true }), editing)).toEqual({ type: 'UNDO' });
   });
 });

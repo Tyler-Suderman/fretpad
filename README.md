@@ -1,6 +1,6 @@
 # Fretpad
 
-Write guitar practice tab by tapping the fretboard and choosing the finger you use for each note. Play it back, then re-finger runs with a hand-position tool that keeps every pitch.
+Write guitar practice tab by tapping the fretboard and choosing the finger you use for each note. Fingers are suggested as you go by following your hand, and you can play it back or loop a section.
 
 ## Run it
 
@@ -16,11 +16,10 @@ npm run build    # type-checks, then builds the static site in dist/
 ## Using it
 
 - **Add notes:** tap a fret, then a finger (1–4, T, or none). Open strings go straight in. A finger is suggested (dashed ring; **Enter** takes it) by following your hand: how each finger sits against your last few (one fret apart, rolling across a fret, stretching, shifting). The sheet's fingering system is a light preference on top: **1 finger per fret** keeps your hand's box; **CAGED** (needs a key) favours the key's five scale shapes. `src/music/fingering.benchmark.test.ts` checks it against a real played sheet.
-- **Edit:** tap a note in the tab to change its finger or tap a fret to move it.
-- **Reconfinger** (F): tap the first and last notes of a run, then slide the hand with − / +. Notes keep their pitch, move under your hand and get one finger per fret. Rings show the same pitch on other strings, with the best fit solid.
+- **Edit:** tap a note in the tab to change its finger or tap a fret to move it. Rings on the neck show the same pitch on other strings, and smaller marks its octaves.
 - **Key and mode:** shows the scale on the neck and flags notes outside the key. Key, mode and note value sit under the title as a summary (e.g. "A Dorian · ♪ eighths"); click it to edit them in place. It opens by itself for a sheet with no key and folds back once the mode is picked.
 - **Playback:** tempo, note value per column, loop and metronome click. Space plays.
-- **Loop section:** select a column and press **[** to start a section there or **]** to end it (or use the [ ] buttons by Loop). In Reconfinger the brackets take the selected run. Play then covers just the section, repeating if Loop is on; **×** clears it. Saved with the sheet.
+- **Loop section:** select a column and press **[** to start a section there or **]** to end it (or use the [ ] buttons by Loop). Play then covers just the section, repeating if Loop is on; **×** clears it. Saved with the sheet.
 - **Sheets** menu: switch, add or delete sheets. They save in your browser's local storage. **Export** gives plain-text tab with a fingering row.
 - **Measures** (setup line): faint measure lines every 4 beats (4/4), following the note value. Bar lines from older sheets still show and restart the count, but there's no tool to add new ones.
 
@@ -33,7 +32,7 @@ src/
   music/        pure domain logic, no React
     types.ts      Note, Finger, Column (notes | rest | bar), Sheet, Key
     theory.ts     tuning, note names, modes, scales
-    fingering.ts  hand position, fit a run, same-pitch alternatives
+    fingering.ts  finger suggestions: hand model, CAGED shapes
     tab.ts        sheet and column helpers
     ascii.ts      plain-text export
   audio/
@@ -51,7 +50,7 @@ prototype/      the original single-file version, kept for reference
 
 ### Editor modes
 
-The editor is a reducer with explicit modes. `Mode` and `Action` are discriminated unions, and each mode's handler table is typed against that mode, so handlers get narrowed state. Each mode lists the actions it accepts; anything else is ignored. The `fingering` mode is what the UI calls Reconfinger.
+The editor is a reducer with explicit modes. `Mode` and `Action` are discriminated unions, and each mode's handler table is typed against that mode, so handlers get narrowed state. Each mode lists the actions it accepts; anything else is ignored.
 
 ```mermaid
 stateDiagram-v2
@@ -61,9 +60,6 @@ stateDiagram-v2
   adding --> editing: SELECT_COLUMN (note or rest)
   editing --> picking: TAP_FRET (replace)
   editing --> adding: SET_FINGER / DONE / same note tapped
-  adding --> fingering: ENTER_FINGERING
-  editing --> fingering: ENTER_FINGERING
-  fingering --> adding: EXIT
 ```
 
 Roadmap: [TODO.md](TODO.md).

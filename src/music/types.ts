@@ -61,12 +61,3 @@ export interface Sheet {
    */
   section?: { from: string | null; to: string | null } | null;
 }
-
-/** A place a note could move to, with the hand position and finger that suit it. */
-export interface Alternative extends Spot {
-  pos: number;
-  finger: Finger;
-  fit: number;
-  score: number;
-  best: boolean;
-}

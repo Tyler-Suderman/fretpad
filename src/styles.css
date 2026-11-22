@@ -96,11 +96,8 @@ select:disabled{cursor:default}
 /* Fretboard marks, loudest to quietest: played note (.dot) > same pitch (.mark.same) > octave (.mark.octave) > in key (.sdot) > inlay. */
 .sdot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.2);pointer-events:none}
 .sdot.root{width:7px;height:7px;background:rgba(255,255,255,.45)}
-.sdot.big{width:auto;height:auto;background:none;font-family:var(--mono);font-size:11px;font-weight:700;color:rgba(255,255,255,.4)}
-.sdot.big.root{color:rgba(255,255,255,.75)}
 .fret.open .sdot{background:var(--line)}
 .fret.open .sdot.root{background:var(--muted)}
-.fret.open .sdot.big{background:none;color:var(--muted)}
 .mark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border-radius:50%;z-index:3}
 .mark.same{width:26px;height:26px;border:2.5px solid rgba(255,255,255,.9)}
 .mark.octave{width:14px;height:14px;border:1.5px solid rgba(255,255,255,.5)}
@@ -116,7 +113,6 @@ select:disabled{cursor:default}
 .col{display:flex;flex-direction:column;min-width:30px;position:relative;--colbg:var(--sheet);background:var(--colbg);border:0;padding:0;}
 .col.notes,.col.rest{cursor:pointer}
 .col.sel{--colbg:var(--sel)}
-.col.rsel{--colbg:var(--sel)}
 .col.play{--colbg:var(--play)}
 .col.editing{box-shadow:inset 0 0 0 2px var(--accent);border-radius:5px}
 .col.editing::after{display:none}
@@ -161,29 +157,7 @@ select:disabled{cursor:default}
 .fbtn.cur{box-shadow:0 0 0 3px var(--paper),0 0 0 5px currentColor}
 .fbtn.sug{outline:2px dashed currentColor;outline-offset:4px}
 .fbtn.none{font-size:13px;color:var(--muted);border-style:dashed}
-.btn.modeswitch{margin-left:10px}
 .cancel{border:0;background:none;color:var(--muted);font-weight:600;padding:8px}
-
-/* fingering mode */
-.app.fingering .sheetwrap{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
-.fx{display:flex;flex-direction:column;gap:10px;width:100%}
-.fxrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.fxrow .what{margin-right:auto;font-weight:700;font-size:14px;line-height:1.25}
-.fxrow .what small,.fxrow .what .modelabel{display:block;font-weight:700;color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
-.posctl{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:999px;padding:1px;background:var(--sheet)}
-.posctl button{width:28px;height:28px;border-radius:50%;border:0;background:var(--sel);color:var(--accent);font-weight:800;font-size:17px}
-.posctl span{font-size:13px;font-weight:600;padding-inline:4px;white-space:nowrap}
-.posctl b{font-family:var(--mono)}
-/* help behind a ? button: hover shows the title tooltip, click/tap opens a popover above the panel */
-.fxrow .what .modelabel{display:flex;align-items:center;gap:6px}
-.fxhelp{position:relative;text-transform:none;letter-spacing:0}
-.fxhelp summary{list-style:none;width:18px;height:18px;border-radius:50%;border:1.5px solid currentColor;
-  display:grid;place-items:center;font-weight:700;font-size:11px;line-height:1;cursor:pointer}
-.fxhelp summary::-webkit-details-marker{display:none}
-.fxhelp[open] summary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-.fxpop{position:absolute;left:-8px;bottom:calc(100% + 8px);z-index:10;width:min(340px,calc(100vw - 32px));margin:0;padding:10px 12px;
-  background:var(--sheet);border:1.5px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.18);
-  font-size:12.5px;color:var(--muted);line-height:1.45}
 
 /* fretboard */
 .boardwrap{overflow-x:auto;overflow-y:hidden;padding-bottom:max(12px,env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch;
@@ -208,11 +182,6 @@ select:disabled{cursor:default}
 .fret.open .dot{background:transparent;border:2.5px solid var(--accent);color:var(--accent);box-shadow:none}
 .dot.pending{background:transparent;border:2.5px dashed #fff;color:#fff;animation:pulse 1s ease-in-out infinite}
 .fret.open .dot.pending{border-color:var(--accent)}
-.dot.ghost{width:26px;height:26px;background:transparent;border:2px dashed rgba(255,255,255,.85);box-shadow:none;font-size:12px}
-.dot.ghost.best{border-style:solid;background:rgba(255,255,255,.2)}
-.fret.open .dot.ghost{border:2px dashed var(--accent)}
-.handbox{grid-row:1/7;margin:2px 0;border:2px dashed rgba(255,255,255,.45);background:rgba(255,255,255,.07);border-radius:8px;pointer-events:none;z-index:1}
-.fnum.inbox{color:var(--accent);font-weight:700}
 @keyframes pulse{50%{transform:translate(-50%,-50%) scale(1.15)}}
 @media (prefers-reduced-motion: reduce){.dot.pending{animation:none}}
 .slabel{position:absolute;left:2px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:12px;font-weight:700;color:var(--muted);pointer-events:none}
@@ -245,8 +214,5 @@ select:disabled{cursor:default}
   .sheetwrap{padding-block:12px 14px}
   .strip{min-height:0;padding-block:8px;gap:6px}
   .fbtn{width:42px;height:42px;font-size:16px}
-  .fx{gap:8px}
-  .fxrow{gap:6px}
-  .fxrow .what{flex-basis:100%}
   .board{grid-template-rows:repeat(6,minmax(32px,1fr)) 20px}
 }

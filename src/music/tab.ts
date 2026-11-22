@@ -57,31 +57,3 @@ export function sectionRange(sheet: Sheet): SectionRange | null {
   return { a, b, openStart: section.from === null, openEnd: section.to === null };
 }
 
-/** Indices of note columns from a to b inclusive. */
-export function noteIndicesBetween(events: readonly Column[], a: number, b: number): number[] {
-  const out: number[] = [];
-  for (let i = a; i <= b; i++) if (isNotes(events[i])) out.push(i);
-  return out;
-}
-
-/** Next note column from i in direction d (+1/-1), or -1. */
-export function stepToNote(events: readonly Column[], i: number, d: 1 | -1): number {
-  let j = i + d;
-  while (j >= 0 && j < events.length && !isNotes(events[j])) j += d;
-  return j >= 0 && j < events.length ? j : -1;
-}
-
-/** Up to `count` note columns either side of i, nearest first. */
-export function neighbourNotes(events: readonly Column[], i: number, count = 3): Note[] {
-  const out: Note[] = [];
-  for (const d of [-1, 1] as const) {
-    let j = i;
-    for (let c = 0; c < count; c++) {
-      j = stepToNote(events, j, d);
-      const n = leadNote(events[j]);
-      if (!n) break;
-      out.push(n);
-    }
-  }
-  return out;
-}

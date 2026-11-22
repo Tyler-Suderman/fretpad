@@ -19,18 +19,8 @@ describe('fretboard focus (same pitch and octave marks)', () => {
     expect(fretboardView(state, -1).focus).toBe(midiAt(2, 4));
   });
 
-  it('is empty with nothing selected or a run selected', () => {
+  it('is empty with nothing selected', () => {
     expect(fretboardView(blank(), -1).focus).toBeNull();
-    const state = run(
-      blank(),
-      { type: 'TAP_FRET', s: 5, f: 1 },
-      { type: 'CHOOSE_FINGER', finger: '1' },
-      { type: 'TAP_FRET', s: 5, f: 2 },
-      { type: 'CHOOSE_FINGER', finger: '2' },
-      { type: 'ENTER_FINGERING' },
-      { type: 'STEP', d: -1, extend: true },
-    );
-    expect(fretboardView(state, -1).focus).toBeNull();
   });
 });
 

@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react';
-import { fingerFor, inBox } from '../music/fingering.ts';
 import { FRETS, OPEN, TUNING, midiAt, noteName } from '../music/theory.ts';
 import type { Spot } from '../music/types.ts';
 import type { FretboardView } from '../state/views.ts';
@@ -21,18 +20,6 @@ function Mark({ s, f, view }: { s: number; f: number; view: FretboardView }) {
     return <span className={`dot f${note.finger}`}>{label}</span>;
   }
 
-  const alt = view.alternatives.find((a) => at(a, s, f));
-  if (alt) {
-    return (
-      <span
-        className={alt.best ? 'dot ghost best' : 'dot ghost'}
-        title={`Finger ${alt.finger === OPEN ? 'open' : alt.finger}, hand at fret ${alt.pos}`}
-      >
-        {alt.finger === OPEN ? '' : alt.finger}
-      </span>
-    );
-  }
-
   const midi = midiAt(s, f);
   if (view.focus !== null && midi === view.focus) {
     return <span className="mark same" title={`${noteName(s, f)}, same pitch`} />;
@@ -44,7 +31,6 @@ function Mark({ s, f, view }: { s: number; f: number; view: FretboardView }) {
   const pc = midi % 12;
   if (view.scale?.has(pc)) {
     const root = pc === view.root ? ' root' : '';
-    if (view.hand !== null && inBox(f, view.hand)) return <span className={`sdot big${root}`}>{fingerFor(f, view.hand)}</span>;
     return <span className={`sdot${root}`} />;
   }
   return null;
@@ -59,7 +45,6 @@ export default function Fretboard({ view, onTap }: { view: FretboardView; onTap:
       <div className="board">
         <div className="wood" />
         <div className="nutbar" />
-        {view.hand !== null && <div className="handbox" style={{ gridColumn: `${view.hand + 1} / span 4` }} />}
         {INLAYS.map((f) => (
           <div key={f} className="inlay" style={{ gridColumn: f + 1 }} />
         ))}
@@ -84,11 +69,7 @@ export default function Fretboard({ view, onTap }: { view: FretboardView; onTap:
         )}
 
         {FRET_NUMBERS.map((f) => (
-          <div
-            key={f}
-            className={view.hand !== null && inBox(f, view.hand) ? 'fnum inbox' : 'fnum'}
-            style={{ gridColumn: f + 1 }}
-          >
+          <div key={f} className="fnum" style={{ gridColumn: f + 1 }}>
             {f === 0 ? 'open' : f}
           </div>
         ))}

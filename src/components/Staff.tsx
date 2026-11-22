@@ -11,7 +11,6 @@ function NoteColumn({ col, onSelect }: { col: StaffColumn; onSelect: OnSelect })
     'col',
     col.kind,
     col.selected && 'sel',
-    col.inRange && 'rsel',
     col.editing && 'editing',
     col.playing && 'play',
     col.inSection && 'loopsec',
