@@ -12,6 +12,22 @@ export const columnSeconds = (bpm: number, div: Division): number => 60 / bpm / 
 
 const playable = (events: readonly Column[]): boolean => events.some((e) => e.kind !== 'bar');
 
+const pitches = (ev: Column | undefined): string =>
+  ev?.kind === 'notes' ? ev.notes.map(midiOf).sort((x, y) => x - y).join(',') : '';
+
+/**
+ * Where a loop over columns lo..hi starts again. When it ends on the pitch it starts with (a scale up
+ * and back down to the root), the repeat skips that first column so the root isn't played twice.
+ */
+export function loopRestart(events: readonly Column[], lo: number, hi: number): number {
+  let first = lo;
+  while (first <= hi && events[first]?.kind === 'bar') first++;
+  let last = hi;
+  while (last >= lo && events[last]?.kind === 'bar') last--;
+  const p = pitches(events[first]);
+  return first < last && p !== '' && p === pitches(events[last]) ? first + 1 : lo;
+}
+
 export interface PlaybackSettings {
   loop: boolean;
   click: boolean;
@@ -69,8 +85,8 @@ export function createPlayer(
       const hi = run.hi == null ? events.length - 1 : Math.min(run.hi, events.length - 1);
       if (run.i > hi) {
         if (settings.loop && playable(events.slice(run.lo, hi + 1))) {
-          run.i = run.lo;
-          run.step = 0;
+          run.i = loopRestart(events, run.lo, hi);
+          run.step = run.i === run.lo ? 0 : 1; // a skipped root still counts as the loop's first beat
           continue;
         }
         run.queue.push({ t: run.next, i: -1 });
