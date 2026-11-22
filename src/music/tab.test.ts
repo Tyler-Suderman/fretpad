@@ -1,15 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { toAscii } from './ascii.ts';
-import { barEvent, newSheet, noteEvent, restEvent, sampleSheet } from './tab.ts';
+import { barEvent, newSheet, noteEvent, restEvent } from './tab.ts';
 
 describe('tab model', () => {
   it('stores open strings with the open finger', () => {
     expect(noteEvent(2, 0, '3').notes[0].finger).toBe('0');
-  });
-
-  it('builds the sample warm-up', () => {
-    const s = sampleSheet();
-    expect(s.events.filter((e) => e.kind === 'notes')).toHaveLength(24);
   });
 });
 

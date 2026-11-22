@@ -29,7 +29,7 @@ export default function App() {
   const playback = usePlayback(sheet, settings);
   const { stop } = playback;
 
-  useEffect(() => save({ doc, settings }), [doc, settings]);
+  useEffect(() => save({ doc, settings, untouched: state.untouched }), [doc, settings, state.untouched]);
   useEffect(() => stop(), [doc.currentId, stop]); // a different sheet stops playback
 
   function togglePlay() {

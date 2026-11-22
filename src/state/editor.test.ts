@@ -3,7 +3,7 @@ import { leadNote, newSheet, noteEvent, sectionRange } from '../music/tab.ts';
 import type { Note } from '../music/types.ts';
 import { accepts, createEditorState, currentSheet, editorReducer } from './editor.ts';
 import type { Action, EditorState } from './editor.ts';
-import { parseSaved } from './storage.ts';
+import { parseSaved, save } from './storage.ts';
 
 const run = (state: EditorState, ...actions: Action[]): EditorState => actions.reduce(editorReducer, state);
 const blank = (): EditorState => createEditorState({ sheets: [newSheet('Test')] });
@@ -178,6 +178,52 @@ describe('loop section', () => {
     let state = run(at(five(), 2), { type: 'SET_SECTION_END' });
     state = run(state, { type: 'SELECT_COLUMN', i: -1 }, { type: 'TAP_FRET', s: 4, f: 0 });
     expect(range(state)).toEqual({ a: 0, b: 3 });
+  });
+});
+
+describe('presets', () => {
+  it('a first visit starts with the C major scale preset', () => {
+    const state = createEditorState(null);
+    expect(sheet(state).title).toMatch(/C major scale/);
+    expect(state.doc.sheets).toHaveLength(1);
+  });
+
+  const ids = (state: EditorState) => state.doc.sheets.map((s) => s.title);
+
+  it('an unchanged preset is dropped when you open another sheet or preset', () => {
+    let state = run(blank(), { type: 'NEW_SHEET', preset: 'c-major' }, { type: 'SELECT_COLUMN', i: 3 });
+    state = run(state, { type: 'NEW_SHEET', preset: 'a-minor-pentatonic' });
+    expect(ids(state)).toEqual(['A minor pentatonic', 'Test']);
+    const test = state.doc.sheets[1]!.id;
+    state = run(state, { type: 'SWITCH_SHEET', id: test });
+    expect(ids(state)).toEqual(['Test']);
+    expect(state.untouched).toBeNull();
+  });
+
+  it('a preset you change is kept', () => {
+    let state = run(blank(), { type: 'NEW_SHEET', preset: 'c-major' }, { type: 'SET_TEMPO', bpm: 100 });
+    state = run(state, { type: 'NEW_SHEET', preset: 'a-minor-pentatonic' });
+    state = run(state, { type: 'TAP_FRET', s: 0, f: 5 }, { type: 'CHOOSE_FINGER', finger: '1' });
+    state = run(state, { type: 'SWITCH_SHEET', id: state.doc.sheets[2]!.id });
+    expect(ids(state)).toEqual(['A minor pentatonic', 'C major scale', 'Test']);
+  });
+
+  it('an unchanged preset is not saved', () => {
+    const state = run(blank(), { type: 'NEW_SHEET', preset: 'c-major' });
+    let stored = '';
+    const ls = { setItem: (_: string, v: string) => (stored = v), getItem: () => stored };
+    Object.assign(globalThis, { localStorage: ls });
+    save(state);
+    expect(parseSaved(stored)?.sheets.map((s) => s.title)).toEqual(['Test']);
+    expect(parseSaved(stored)?.currentId).toBe(state.doc.sheets[1]!.id);
+  });
+
+  it('a preset opens as a new sheet, first in the list, without touching the others', () => {
+    const state = run(blank(), { type: 'NEW_SHEET', preset: 'c-major' });
+    expect(state.doc.sheets).toHaveLength(2);
+    expect(sheet(state).title).toMatch(/C major scale/);
+    expect(sheet(state).key).toEqual({ root: 0, mode: 0 });
+    expect(state.doc.sheets[1]?.title).toBe('Test');
   });
 });
 

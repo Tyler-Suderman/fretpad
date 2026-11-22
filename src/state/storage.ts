@@ -75,9 +75,11 @@ export function loadSaved(): SavedEditor | null {
   }
 }
 
-export function save(state: Pick<EditorState, 'doc' | 'settings'>): void {
+/** Saves everything except an untouched preset (see EditorState.untouched). */
+export function save(state: Pick<EditorState, 'doc' | 'settings' | 'untouched'>): void {
   try {
-    const { sheets, currentId } = state.doc;
+    const sheets = state.doc.sheets.filter((s) => s.id !== state.untouched);
+    const currentId = state.doc.currentId === state.untouched ? sheets[0]?.id : state.doc.currentId;
     const stored: StoredV2 = { version: VERSION, sheets, currentId, settings: state.settings };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
   } catch {

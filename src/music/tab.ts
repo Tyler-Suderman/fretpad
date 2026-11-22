@@ -30,15 +30,6 @@ export const newSheet = (title = 'Untitled practice'): Sheet => ({
   key: null,
 });
 
-export function sampleSheet(): Sheet {
-  const events: Column[] = [];
-  for (const pair of [[5, 4], [3, 2], [1, 0]]) {
-    for (const s of pair) for (let f = 1; f <= 4; f++) events.push(noteEvent(s, f, String(f) as Finger));
-    events.push(barEvent());
-  }
-  return { ...newSheet('Example: 1-2-3-4 chromatic warm-up'), events, cursor: events.length - 1 };
-}
-
 export interface SectionRange {
   a: number;
   b: number;

@@ -10,6 +10,8 @@
 // GLOBAL actions work in every mode.
 import type { PlaybackSettings } from '../audio/player.ts';
 import { suggestFinger } from '../music/fingering.ts';
+import { presetSheet } from '../music/presets.ts';
+import type { PresetId } from '../music/presets.ts';
 import {
   isNotes,
   isReplaceable,
@@ -17,7 +19,6 @@ import {
   newSheet,
   noteEvent,
   restEvent,
-  sampleSheet,
   sectionRange,
 } from '../music/tab.ts';
 import { FRETS, OPEN } from '../music/theory.ts';
@@ -47,6 +48,11 @@ export interface EditorState {
   settings: Settings;
   mode: Mode;
   undo: UndoStep[];
+  /**
+   * A preset sheet opened but not changed yet. It isn't saved, and it's dropped when you move to another
+   * sheet, so browsing presets doesn't pile up copies. Any change to its content keeps it for good.
+   */
+  untouched: string | null;
 }
 
 type Step = 1 | -1;
@@ -54,7 +60,7 @@ type Step = 1 | -1;
 export type Action =
   // global
   | { type: 'SWITCH_SHEET'; id: string }
-  | { type: 'NEW_SHEET' }
+  | { type: 'NEW_SHEET'; preset?: PresetId }
   | { type: 'DELETE_SHEET' }
   | { type: 'RENAME'; title: string }
   | { type: 'SET_TEMPO'; bpm: number }
@@ -231,9 +237,15 @@ const sectionAtCursor = (edge: 'start' | 'end') => (state: EditorState) =>
 
 const GLOBAL: Handlers<EditorState> = {
   SWITCH_SHEET: (state, { id }) => ({ ...state, doc: { ...state.doc, currentId: id }, mode: ADDING, undo: [] }),
-  NEW_SHEET: (state) => {
-    const sheet = newSheet();
-    return { ...state, doc: { sheets: [sheet, ...state.doc.sheets], currentId: sheet.id }, mode: ADDING, undo: [] };
+  NEW_SHEET: (state, { preset }) => {
+    const sheet = preset ? presetSheet(preset) : newSheet();
+    return {
+      ...state,
+      doc: { sheets: [sheet, ...state.doc.sheets], currentId: sheet.id },
+      mode: ADDING,
+      undo: [],
+      untouched: preset ? sheet.id : null,
+    };
   },
   DELETE_SHEET: (state) => {
     const rest = state.doc.sheets.filter((s) => s.id !== state.doc.currentId);
@@ -303,9 +315,38 @@ function handlerFor(state: EditorState, type: ActionType): AnyHandler | undefine
   return (GLOBAL[type] ?? table[type]) as AnyHandler | undefined;
 }
 
+/** What counts as changing a sheet: anything but the cursor (selecting notes isn't a change). */
+const CONTENT = ['events', 'title', 'bpm', 'div', 'key', 'section', 'system'] as const;
+const sameContent = (a: Sheet, b: Sheet): boolean => CONTENT.every((k) => a[k] === b[k]);
+
+/** Keep an untouched preset only while it's open and unchanged. */
+function settleUntouched(prev: EditorState, next: EditorState): EditorState {
+  const id = prev.untouched;
+  if (!id || next.untouched !== id) return next; // nothing pending, or a new preset replaced it
+  const before = prev.doc.sheets.find((s) => s.id === id);
+  const after = next.doc.sheets.find((s) => s.id === id);
+  if (!before || !after) return { ...next, untouched: null }; // deleted
+  if (!sameContent(before, after)) return { ...next, untouched: null }; // changed: keep it
+  if (next.doc.currentId === id) return next; // still open, still unchanged
+  // moved to another sheet without changing it: drop it
+  return { ...next, doc: { ...next.doc, sheets: next.doc.sheets.filter((s) => s.id !== id) }, untouched: null };
+}
+
 export function editorReducer(state: EditorState, action: Action): EditorState {
   const handler = handlerFor(state, action.type);
-  return handler ? handler(state, action) : state;
+  if (!handler) return state;
+  const next = handler(state, action);
+  if (!state.untouched) return next;
+  // a new preset replacing an unchanged one: drop the old one now
+  if (next.untouched && next.untouched !== state.untouched) {
+    const old = state.doc.sheets.find((s) => s.id === state.untouched);
+    const kept = old && next.doc.sheets.find((s) => s.id === old.id);
+    if (old && kept && sameContent(old, kept)) {
+      return { ...next, doc: { ...next.doc, sheets: next.doc.sheets.filter((s) => s.id !== old.id) } };
+    }
+    return next;
+  }
+  return settleUntouched(state, next);
 }
 
 /** Whether the current mode accepts an action type (for enabling controls and key handling). */
@@ -318,7 +359,8 @@ export interface SavedEditor {
 }
 
 export function createEditorState(saved: SavedEditor | null): EditorState {
-  const sheets = saved?.sheets.length ? saved.sheets : [sampleSheet()];
+  const fresh = !saved?.sheets.length;
+  const sheets = fresh ? [presetSheet('c-major')] : saved.sheets;
   const first = sheets[0]!;
   const currentId = sheets.some((s) => s.id === saved?.currentId) ? saved!.currentId! : first.id;
   return {
@@ -326,5 +368,6 @@ export function createEditorState(saved: SavedEditor | null): EditorState {
     settings: { loop: true, click: true, showScale: true, showMeasures: true, ...saved?.settings },
     mode: ADDING,
     undo: [],
+    untouched: fresh ? first.id : null,
   };
 }

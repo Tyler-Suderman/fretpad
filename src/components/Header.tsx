@@ -1,10 +1,13 @@
 import type { ChangeEvent, Dispatch, ReactNode } from 'react';
+import { PRESETS } from '../music/presets.ts';
+import type { PresetId } from '../music/presets.ts';
 import type { Sheet } from '../music/types.ts';
 import type { Action } from '../state/editor.ts';
 
 const MENU = '';
 const NEW_SHEET = '__new';
 const DELETE_SHEET = '__delete';
+const PRESET = '__preset:';
 
 interface Props {
   sheets: Sheet[];
@@ -23,6 +26,7 @@ export default function Header({ sheets, sheet, dispatch, onExport, setupSummary
   const onMenu = (e: ChangeEvent<HTMLSelectElement>) => {
     const choice = e.target.value;
     if (choice === NEW_SHEET) dispatch({ type: 'NEW_SHEET' });
+    else if (choice.startsWith(PRESET)) dispatch({ type: 'NEW_SHEET', preset: choice.slice(PRESET.length) as PresetId });
     else if (choice === DELETE_SHEET) {
       // deleting a sheet clears its undo history, so ask first
       if (window.confirm(`Delete "${sheet.title || 'Untitled'}"? This can't be undone.`)) dispatch({ type: 'DELETE_SHEET' });
@@ -70,6 +74,13 @@ export default function Header({ sheets, sheet, dispatch, onExport, setupSummary
           ))}
           <option disabled>──────────</option>
           <option value={NEW_SHEET}>+ New sheet</option>
+          <optgroup label="New from a preset">
+            {PRESETS.map((p) => (
+              <option key={p.id} value={PRESET + p.id}>
+                + {p.title}
+              </option>
+            ))}
+          </optgroup>
           <option value={DELETE_SHEET}>Delete this sheet…</option>
         </select>
         <button className="btn" onClick={onExport}>
