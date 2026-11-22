@@ -2,7 +2,7 @@
 //
 // Modes (state.mode.type):
 //   adding     tapping a fret adds a note after the cursor
-//   picking    a fret was tapped; waiting for a finger   { s, f, replace }
+//   picking    a fret was tapped; waiting for a finger   { s, f, replace, suggest }
 //   editing    a placed note/rest is selected; a fret tap replaces it, a finger changes it
 //   fingering  re-finger a run of notes keeping pitches  { a, b, pos }  (columns a..b, hand at fret pos)
 //
@@ -10,7 +10,7 @@
 // An action a mode does not list is ignored, so UI states can't leak into each other.
 // GLOBAL actions work in every mode.
 import type { PlaybackSettings } from '../audio/player.ts';
-import { alternativesFor, clampPos, fingerFor, fitRun, inBox, inferPos } from '../music/fingering.ts';
+import { alternativesFor, clampPos, fingerFor, fitRun, inBox, inferPos, suggestFinger } from '../music/fingering.ts';
 import {
   isNotes,
   isReplaceable,
@@ -25,13 +25,13 @@ import {
   stepToNote,
 } from '../music/tab.ts';
 import { FRETS, OPEN, midiAt, midiOf, scaleOf } from '../music/theory.ts';
-import type { Column, Division, Finger, Key, Note, Sheet } from '../music/types.ts';
+import type { Column, Division, Finger, FingeringSystem, Key, Note, Sheet } from '../music/types.ts';
 
 /* ---------- types ---------- */
 
 export type Mode =
   | { type: 'adding' }
-  | { type: 'picking'; s: number; f: number; replace: boolean }
+  | { type: 'picking'; s: number; f: number; replace: boolean; suggest: Finger }
   | { type: 'editing' }
   | { type: 'fingering'; a: number; b: number; pos: number };
 export type ModeType = Mode['type'];
@@ -63,6 +63,7 @@ export type Action =
   | { type: 'SET_TEMPO'; bpm: number }
   | { type: 'SET_DIVISION'; div: Division }
   | { type: 'SET_KEY'; key: Key | null }
+  | { type: 'SET_SYSTEM'; system: FingeringSystem }
   | { type: 'TOGGLE'; setting: keyof Settings }
   | { type: 'UNDO' }
   | { type: 'CLEAR_SECTION' }
@@ -77,6 +78,7 @@ export type Action =
   | { type: 'SET_SECTION_START' }
   | { type: 'SET_SECTION_END' }
   | { type: 'CHOOSE_FINGER'; finger: Finger }
+  | { type: 'ACCEPT_SUGGESTION' }
   | { type: 'CANCEL' }
   | { type: 'SET_FINGER'; finger: Finger }
   | { type: 'DONE' }
@@ -190,9 +192,21 @@ function selectColumn(state: EditorState, { i }: ActionOf<'SELECT_COLUMN'>): Edi
   return to(patch(state, { cursor: i }), editable ? { type: 'editing' } : ADDING);
 }
 
+/** Up to four notes just before the new note: the cursor column and before when inserting, before it when replacing. */
+function notesBefore(sheet: Sheet, replace: boolean): Note[] {
+  const out: Note[] = [];
+  for (let i = replace ? sheet.cursor - 1 : sheet.cursor; i >= 0 && out.length < 4; i--) {
+    const n = leadNote(sheet.events[i]);
+    if (n) out.push(n);
+  }
+  return out;
+}
+
 function tapFret(state: EditorState, { s, f }: ActionOf<'TAP_FRET'>, replace: boolean): EditorState {
   if (f === 0) return replace ? replaceAtCursor(state, s, 0, OPEN) : insert(state, noteEvent(s, 0, OPEN));
-  return to(state, { type: 'picking', s, f, replace });
+  const sheet = currentSheet(state);
+  const suggest = suggestFinger(f, notesBefore(sheet, replace), sheet.key, sheet.system ?? 'perFret');
+  return to(state, { type: 'picking', s, f, replace, suggest });
 }
 
 function enterFingering(state: EditorState): EditorState {
@@ -299,6 +313,7 @@ const GLOBAL: Handlers<EditorState> = {
     patch(state, { bpm: Math.max(30, Math.min(260, Math.round(bpm) || currentSheet(state).bpm)) }),
   SET_DIVISION: (state, { div }) => patch(state, { div }),
   SET_KEY: (state, { key }) => patch(state, { key }),
+  SET_SYSTEM: (state, { system }) => patch(state, { system }),
   TOGGLE: (state, { setting }) => ({ ...state, settings: { ...state.settings, [setting]: !state.settings[setting] } }),
   UNDO: (state) => {
     const last = state.undo[state.undo.length - 1];
@@ -325,6 +340,10 @@ const MODES: { [M in ModeType]: Handlers<In<M>> } = {
     CHOOSE_FINGER: (state, { finger }) => {
       const { s, f, replace } = state.mode;
       return replace ? replaceAtCursor(state, s, f, finger) : insert(state, noteEvent(s, f, finger));
+    },
+    ACCEPT_SUGGESTION: (state) => {
+      const { s, f, replace, suggest } = state.mode;
+      return replace ? replaceAtCursor(state, s, f, suggest) : insert(state, noteEvent(s, f, suggest));
     },
     CANCEL: (state) => to(state, state.mode.replace ? { type: 'editing' } : ADDING),
     TAP_FRET: (state, a) => tapFret(state, a, state.mode.replace),

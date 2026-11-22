@@ -72,6 +72,15 @@ export const spotsFor = (m: number): Spot[] =>
 
 export type Scale = ReadonlySet<number>;
 
+/**
+ * Pitch class of the major scale a key's notes come from (its CAGED shapes are that scale's shapes):
+ * a mode's parent major, the root for major pentatonic, a minor third up for minor pentatonic.
+ */
+export function parentMajorRoot(key: Key): number {
+  const offset = key.mode < MAJOR.length ? at(MAJOR, key.mode) : key.mode === MAJOR.length + 1 ? -3 : 0;
+  return (((key.root - offset) % 12) + 12) % 12;
+}
+
 /** Pitch classes in a key, or null when no key is set. */
 export function scaleOf(key: Key | null): Scale | null {
   const mode = key ? MODES[key.mode] : undefined;

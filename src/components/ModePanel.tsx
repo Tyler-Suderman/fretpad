@@ -61,10 +61,13 @@ function PickingPanel({ mode, sheet, dispatch }: PanelProps & { mode: ModeOf<'pi
   return (
     <div className="picker">
       <div className="what">
-        <small>{mode.replace ? 'Change note to · which finger?' : 'Which finger?'}</small>
+        <small>
+          {mode.replace ? 'Change note to · which finger?' : 'Which finger?'}
+          {mode.suggest !== '' && mode.suggest !== OPEN && <> · Enter for {mode.suggest}</>}
+        </small>
         {where(mode)}
       </div>
-      <FingerButtons current={had} onPick={(finger) => dispatch({ type: 'CHOOSE_FINGER', finger })} />
+      <FingerButtons current={had} suggested={mode.suggest} onPick={(finger) => dispatch({ type: 'CHOOSE_FINGER', finger })} />
       <button className="cancel" onClick={() => dispatch({ type: 'CANCEL' })}>
         Cancel
       </button>

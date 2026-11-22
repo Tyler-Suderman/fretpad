@@ -153,6 +153,7 @@ select:disabled{cursor:default}
 .fbtn{width:48px;height:48px;border-radius:50%;border:2px solid currentColor;background:var(--sheet);font-family:var(--mono);font-weight:700;font-size:18px;display:grid;place-items:center;}
 .fbtn:hover{background:var(--sel)}
 .fbtn.cur{box-shadow:0 0 0 3px var(--paper),0 0 0 5px currentColor}
+.fbtn.sug{outline:2px dashed currentColor;outline-offset:4px}
 .fbtn.none{font-size:13px;color:var(--muted);border-style:dashed}
 .btn.modeswitch{margin-left:10px}
 .cancel{border:0;background:none;color:var(--muted);font-weight:600;padding:8px}
@@ -199,7 +200,7 @@ select:disabled{cursor:default}
 .dot{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-family:var(--mono);font-weight:700;font-size:13px;color:#fff;z-index:3;box-shadow:0 1px 3px rgba(0,0,0,.4)}
 .dot.f1{background:var(--f1)} .dot.f2{background:var(--f2)} .dot.f3{background:var(--f3)} .dot.f4{background:var(--f4)} .dot.fT{background:var(--fT)} .dot.f0,.dot.f{background:var(--accent);color:var(--accent-ink)}
 .fret.open .dot{background:transparent;border:2.5px solid var(--accent);color:var(--accent);box-shadow:none}
-.dot.pending{background:transparent;border:2.5px dashed #fff;animation:pulse 1s ease-in-out infinite}
+.dot.pending{background:transparent;border:2.5px dashed #fff;color:#fff;animation:pulse 1s ease-in-out infinite}
 .fret.open .dot.pending{border-color:var(--accent)}
 .dot.ghost{width:26px;height:26px;background:transparent;border:2px dashed rgba(255,255,255,.85);box-shadow:none;font-size:12px}
 .dot.ghost.best{border-style:solid;background:rgba(255,255,255,.2)}

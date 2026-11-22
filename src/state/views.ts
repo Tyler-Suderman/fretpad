@@ -3,7 +3,7 @@ import { alternativesFor } from '../music/fingering.ts';
 import { isNotes, leadNote, neighbourNotes, noteIndicesBetween, sectionRange } from '../music/tab.ts';
 import { keyName, midiAt, midiOf, scaleOf } from '../music/theory.ts';
 import type { Scale } from '../music/theory.ts';
-import type { Alternative, Column, Division, Key, Note, Sheet, Spot } from '../music/types.ts';
+import type { Alternative, Column, Division, Key, Note, Sheet } from '../music/types.ts';
 import { currentSheet } from './editor.ts';
 import type { EditorState } from './editor.ts';
 
@@ -16,7 +16,9 @@ export const DIVISIONS: readonly { value: Division; label: string }[] = [
 
 /** One-line summary of a sheet's setup for the collapsed setup row, key first, e.g. "A Dorian · ♪ eighths". */
 export const setupSummary = (sheet: Sheet): string =>
-  `${keyName(sheet.key) || 'No key'} · ${DIVISIONS.find((d) => d.value === sheet.div)?.label ?? ''}`;
+  [keyName(sheet.key) || 'No key', DIVISIONS.find((d) => d.value === sheet.div)?.label ?? '', sheet.system === 'caged' && sheet.key ? 'CAGED' : '']
+    .filter(Boolean)
+    .join(' · ');
 
 export interface StaffNote extends Note {
   outOfKey: boolean;
@@ -69,7 +71,8 @@ export function staffView(state: EditorState, playingIndex: number): StaffView {
 
 export interface FretboardView {
   shown: readonly Note[];
-  pending: Spot | null;
+  /** A tapped fret waiting for a finger, with the suggested finger. */
+  pending: Note | null;
   alternatives: Alternative[];
   /** Fret under finger 1 in fingering mode, else null. */
   hand: number | null;
@@ -109,7 +112,7 @@ export function fretboardView(state: EditorState, playingIndex: number): Fretboa
     }
   } else {
     view.shown = notesAt(sheet.cursor);
-    if (mode.type === 'picking') view.pending = { s: mode.s, f: mode.f };
+    if (mode.type === 'picking') view.pending = { s: mode.s, f: mode.f, finger: mode.suggest };
   }
   const only = view.shown.length === 1 ? view.shown[0] : undefined;
   view.focus = view.pending ? midiAt(view.pending.s, view.pending.f) : only ? midiOf(only) : null;

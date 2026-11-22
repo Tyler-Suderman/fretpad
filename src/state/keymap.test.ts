@@ -12,7 +12,7 @@ const key = (k: string, extra: Partial<{ shiftKey: boolean; metaKey: boolean }> 
 
 const adding: Mode = { type: 'adding' };
 const editing: Mode = { type: 'editing' };
-const picking: Mode = { type: 'picking', s: 2, f: 5, replace: false };
+const picking: Mode = { type: 'picking', s: 2, f: 5, replace: false, suggest: '1' };
 const fingering: Mode = { type: 'fingering', a: 0, b: 0, pos: 5 };
 
 describe('keyToAction', () => {

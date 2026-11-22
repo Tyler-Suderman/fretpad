@@ -1,7 +1,7 @@
 // Sheet setup that rarely changes: key, mode, note value, scale display. Shown in place of the title's subtitle when open.
 import type { Dispatch } from 'react';
 import { MODES, ROOTS } from '../music/theory.ts';
-import type { Division, Sheet } from '../music/types.ts';
+import type { Division, FingeringSystem, Sheet } from '../music/types.ts';
 import type { Action, Settings } from '../state/editor.ts';
 import { DIVISIONS } from '../state/views.ts';
 import Toggle from './Toggle.tsx';
@@ -82,6 +82,21 @@ export default function SetupBar({ sheet, settings, dispatch: send, onTouch, onD
         ·
       </span>
       {divSelect}
+      <span className="sep" aria-hidden="true">
+        ·
+      </span>
+      <select
+        id="system"
+        aria-label="Fingering system"
+        title="How fingers are suggested when you tap a fret"
+        value={sheet.system ?? 'perFret'}
+        onChange={(e) => dispatch({ type: 'SET_SYSTEM', system: e.target.value as FingeringSystem })}
+      >
+        <option value="perFret">1 finger per fret</option>
+        <option value="caged" disabled={!sheet.key}>
+          CAGED{sheet.key ? '' : ' (set a key)'}
+        </option>
+      </select>
       {sheet.key && (
         <>
           <span className="sep" aria-hidden="true">

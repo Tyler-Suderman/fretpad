@@ -1,7 +1,7 @@
-// Fingering rules for a "one finger per fret" hand. Pure functions over notes.
-import { FRETS, OPEN, STRING_COUNT, midiAt, midiOf, spotsFor } from './theory.ts';
+// Fingering rules: a "one finger per fret" hand, CAGED positions and finger suggestions. Pure functions over notes.
+import { FRETS, OPEN, STRING_COUNT, midiAt, midiOf, parentMajorRoot, spotsFor } from './theory.ts';
 import type { Scale } from './theory.ts';
-import type { Alternative, Finger, Note, Spot } from './types.ts';
+import type { Alternative, Finger, FingeringSystem, Key, Note, Spot } from './types.ts';
 
 /** Lowest fret finger 1 can sit on so the 4-fret box stays on the neck. */
 export const clampPos = (pos: number): number => Math.max(1, Math.min(FRETS - 3, pos));
@@ -35,6 +35,51 @@ export function inferPos(notes: readonly Note[]): number {
   let best: { p: number; count: number } | null = null;
   for (const [p, count] of votes) if (!best || count > best.count) best = { p, count };
   return clampPos(best ? best.p : Number.isFinite(lowest) ? lowest : 1);
+}
+
+/**
+ * Index-finger fret of each CAGED major-scale shape, relative to the parent major root on the low E string:
+ * E shape (root under finger 2), then D, C, A and G shapes up the neck. In G major: frets 2, 4, 7, 9, 12.
+ */
+const CAGED_OFFSETS = [-1, 1, 4, 6, 9];
+
+/** Hand positions (finger 1's fret) of the key's five CAGED shapes, in every octave that fits on the neck. */
+export function cagedPositions(key: Key): number[] {
+  const rootOnLowE = (parentMajorRoot(key) - midiAt(5, 0) + 120) % 12;
+  const out = new Set<number>();
+  for (const base of [rootOnLowE - 12, rootOnLowE, rootOnLowE + 12]) {
+    for (const o of CAGED_OFFSETS) {
+      const p = base + o;
+      if (p >= 0 && p <= FRETS - 3) out.add(Math.max(1, p)); // a shape at fret 0 is open position: finger 1 on fret 1
+    }
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
+/** A fret the hand at `pos` reaches: the 4-fret box plus a one-fret stretch either side. */
+const reaches = (fret: number, pos: number): boolean => fret >= pos - 1 && fret <= pos + 4;
+
+/**
+ * Suggest a finger for a fret, given the notes just before it.
+ * caged (with a key): the shape that reaches the fret, preferring no stretch, then the one nearest the recent hand.
+ * perFret, or caged without a key: keep the recent hand if it reaches the fret, else move it the least.
+ */
+export function suggestFinger(fret: number, recent: readonly Note[], key: Key | null, system: FingeringSystem): Finger {
+  if (fret === 0) return OPEN;
+  const fretted = recent.filter((n) => n.f > 0);
+  const hand = fretted.length ? inferPos(fretted) : null;
+
+  if (system === 'caged' && key) {
+    const ref = hand ?? fret - 1; // no context: the shape that puts the fret under finger 2
+    const fits = cagedPositions(key).filter((p) => reaches(fret, p));
+    const cost = (p: number) => (inBox(fret, p) ? 0 : 10) + Math.abs(p - ref);
+    const best = fits.reduce<number | null>((b, p) => (b === null || cost(p) < cost(b) ? p : b), null);
+    if (best !== null) return fingerFor(fret, best);
+  }
+
+  if (hand !== null && reaches(fret, hand)) return fingerFor(fret, hand);
+  if (hand !== null && fret > hand + 4) return fingerFor(fret, clampPos(fret - 3)); // reach up: pinky
+  return fingerFor(fret, clampPos(fret)); // first note, or reaching down: index
 }
 
 /** Cost of playing a spot with the hand at `pos`: in the box, then a 1-fret stretch, then open, then far. */

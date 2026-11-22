@@ -15,7 +15,7 @@ npm run build    # type-checks, then builds the static site in dist/
 
 ## Using it
 
-- **Add notes:** tap a fret, then a finger (1–4, T, or none). Open strings go straight in.
+- **Add notes:** tap a fret, then a finger (1–4, T, or none). Open strings go straight in. A finger is suggested (dashed ring; **Enter** takes it) from the sheet's fingering system: **1 finger per fret** follows your recent hand position; **CAGED** (needs a key) uses the key's five scale shapes, picking the one nearest your hand.
 - **Edit:** tap a note in the tab to change its finger or tap a fret to move it.
 - **Reconfinger** (F): tap the first and last notes of a run, then slide the hand with − / +. Notes keep their pitch, move under your hand and get one finger per fret. Rings show the same pitch on other strings, with the best fit solid.
 - **Key and mode:** shows the scale on the neck and flags notes outside the key. Key, mode and note value sit under the title as a summary (e.g. "A Dorian · ♪ eighths"); click it to edit them in place. It opens by itself for a sheet with no key and folds back once the mode is picked.

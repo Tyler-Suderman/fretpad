@@ -16,7 +16,7 @@ const leads = (state: EditorState): Note[] => sheet(state).events.flatMap((e) =>
 describe('adding notes', () => {
   it('tap fret → pick finger → note is added after the cursor', () => {
     let s = run(blank(), { type: 'TAP_FRET', s: 2, f: 5 });
-    expect(s.mode).toEqual({ type: 'picking', s: 2, f: 5, replace: false });
+    expect(s.mode).toMatchObject({ type: 'picking', s: 2, f: 5, replace: false });
     s = run(s, { type: 'CHOOSE_FINGER', finger: '1' });
     expect(s.mode.type).toBe('adding');
     expect(lead(s, 0)).toEqual({ s: 2, f: 5, finger: '1' });
@@ -187,5 +187,25 @@ describe('loop section', () => {
       { type: 'SET_SECTION_END' },
     );
     expect(range(state)).toEqual({ a: 1, b: 3 });
+  });
+});
+
+describe('finger suggestions while adding', () => {
+  it('Enter (ACCEPT_SUGGESTION) adds the note with the suggested finger', () => {
+    let state = run(blank(), { type: 'TAP_FRET', s: 5, f: 5 }, { type: 'CHOOSE_FINGER', finger: '1' });
+    state = run(state, { type: 'TAP_FRET', s: 5, f: 7 });
+    expect(state.mode).toMatchObject({ type: 'picking', suggest: '3' });
+    state = run(state, { type: 'ACCEPT_SUGGESTION' });
+    expect(lead(state, 1)).toEqual({ s: 5, f: 7, finger: '3' });
+  });
+
+  it('uses the CAGED shapes once the sheet is set to CAGED', () => {
+    const state = run(
+      blank(),
+      { type: 'SET_KEY', key: { root: 7, mode: 0 } }, // G major
+      { type: 'SET_SYSTEM', system: 'caged' },
+      { type: 'TAP_FRET', s: 5, f: 3 },
+    );
+    expect(state.mode).toMatchObject({ suggest: '2' }); // E shape: root under finger 2
   });
 });

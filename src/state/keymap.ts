@@ -22,6 +22,7 @@ export function keyToAction({ key, shiftKey, metaKey, ctrlKey }: KeyInput, mode:
     if (finger) return { type: 'CHOOSE_FINGER', finger };
     if (key === '0' || lower === 'n') return { type: 'CHOOSE_FINGER', finger: '' };
     if (key === 'Escape') return { type: 'CANCEL' };
+    if (key === 'Enter') return { type: 'ACCEPT_SUGGESTION' };
     return null;
   }
 

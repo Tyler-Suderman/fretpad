@@ -10,7 +10,10 @@ const at = (a: Spot | null | undefined, s: number, f: number): boolean => !!a &&
 
 /** The mark drawn on one fret space, in priority order. */
 function Mark({ s, f, view }: { s: number; f: number; view: FretboardView }) {
-  if (at(view.pending, s, f)) return <span className="dot pending" />;
+  if (view.pending && at(view.pending, s, f)) {
+    const { finger } = view.pending;
+    return <span className="dot pending">{finger !== OPEN ? finger : ''}</span>;
+  }
 
   const note = view.shown.find((n) => at(n, s, f));
   if (note) {

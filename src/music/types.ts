@@ -32,6 +32,9 @@ export interface BarColumn {
 }
 export type Column = NotesColumn | RestColumn | BarColumn;
 
+/** How fingers are suggested: one finger per fret from the current hand, or the five CAGED scale shapes of the key. */
+export type FingeringSystem = 'perFret' | 'caged';
+
 /** Note value of one column: quarter, eighth or sixteenth. */
 export type Division = 4 | 8 | 16;
 
@@ -50,6 +53,8 @@ export interface Sheet {
   bpm: number;
   div: Division;
   key: Key | null;
+  /** Fingering system for suggestions; absent = one finger per fret. */
+  system?: FingeringSystem;
   /** Loop section, by column id so edits elsewhere don't move it. Absent or null = the whole sheet. */
   section?: { from: string; to: string } | null;
 }
