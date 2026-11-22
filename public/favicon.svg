@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5.6 3.7 64.0 64.0">
+  <!-- a Strat-style electric guitar silhouette in light purple -->
+  <g transform="rotate(40 32 32)">
+    <path fill="#B69CFF" d="M35 14C35 10 37.5 7 36.5 4C35.5 1 31 0 27.5 1C24.5 2 24 4.5 25.5 6.5C27 8.5 29 9.5 29 13Z"/>
+    <rect x="29" y="8" width="6" height="34" rx="1.5" fill="#B69CFF"/>
+    <path fill="#B69CFF" d="M28 40C28 36 25 29.5 21 29.5C17 29.5 15.5 35 16.5 40C17.5 44 17 46 15 49C12 53 13 62 22 64C27 65.5 37 65.5 42 64C51 62 52 53 49 49C47 46 46 44 47 41C48 37 46.5 33 43.5 33C40 33 37 37 36 40Z"/>
+  </g>
+</svg>
