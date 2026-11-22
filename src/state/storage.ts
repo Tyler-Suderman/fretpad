@@ -4,7 +4,8 @@ import type { Column, Sheet } from '../music/types.ts';
 import type { EditorState, SavedEditor, Settings } from './editor.ts';
 
 const STORAGE_KEY = 'fretpad.v1';
-const VERSION = 2;
+/** 3: loop section edges can be open (null). */
+const VERSION = 3;
 
 /** Stored JSON is untrusted: older formats and hand edits are possible. */
 type StoredColumn = Omit<Column, 'kind'> & { kind: Column['kind'] | 'gap' };
@@ -24,9 +25,26 @@ interface StoredLegacy extends Partial<Settings> {
   current?: string;
 }
 
-function normalizeSheet(raw: StoredSheet): Sheet {
+/**
+ * Before version 3 a section always stored both edges, filling an unset one with the sheet's first or last
+ * column. Reopen edges that sit there, so those sections grow with the sheet like new ones.
+ */
+function reopenSection(sheet: Sheet): Sheet {
+  const { section, events } = sheet;
+  if (!section) return sheet;
+  return {
+    ...sheet,
+    section: {
+      from: section.from === events[0]?.id ? null : section.from,
+      to: section.to === events[events.length - 1]?.id ? null : section.to,
+    },
+  };
+}
+
+function normalizeSheet(raw: StoredSheet, version: number): Sheet {
   const events = (raw.events ?? []).map((ev) => (ev.kind === 'gap' ? { ...ev, kind: 'rest' } : ev)) as Column[];
-  return { ...newSheet(), ...raw, events };
+  const sheet: Sheet = { ...newSheet(), ...raw, events };
+  return version < 3 ? reopenSection(sheet) : sheet;
 }
 
 /** Parse stored JSON into a SavedEditor, or null. Exported for tests. */
@@ -35,7 +53,7 @@ export function parseSaved(json: string | null): SavedEditor | null {
   try {
     const raw = JSON.parse(json) as StoredV2 | StoredLegacy;
     if (!Array.isArray(raw?.sheets)) return null;
-    const sheets = raw.sheets.map(normalizeSheet);
+    const sheets = raw.sheets.map((s) => normalizeSheet(s, raw.version ?? 1));
     if (raw.version === undefined) {
       return {
         sheets,

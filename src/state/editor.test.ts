@@ -134,6 +134,15 @@ describe('storage', () => {
     expect(saved?.sheets[0]?.bpm).toBe(80);
   });
 
+  it('reopens section edges that older versions filled in with the first or last column', () => {
+    const events = [noteEvent(5, 1, '1'), noteEvent(5, 2, '2'), noteEvent(5, 3, '3')];
+    const ids = events.map((e) => e.id);
+    const stored = (version: number) =>
+      JSON.stringify({ version, sheets: [{ ...newSheet('Old'), events, section: { from: ids[1], to: ids[2] } }] });
+    expect(parseSaved(stored(2))?.sheets[0]?.section).toEqual({ from: ids[1], to: null });
+    expect(parseSaved(stored(3))?.sheets[0]?.section).toEqual({ from: ids[1], to: ids[2] }); // current format kept
+  });
+
   it('returns null for missing or broken data', () => {
     expect(parseSaved(null)).toBeNull();
     expect(parseSaved('{oops')).toBeNull();
@@ -186,8 +195,18 @@ describe('loop section', () => {
     state = run(state, { type: 'MOVE_CURSOR', d: 1 }, { type: 'MOVE_CURSOR', d: 1 }, { type: 'TAP_FRET', s: 4, f: 0 });
     expect(range(state)).toEqual({ a: 2, b: 5 });
     expect(sectionRange(sheet(state))?.openEnd).toBe(true);
-    state = run(at(state, 5), { type: 'SET_SECTION_END' }, { type: 'TAP_FRET', s: 4, f: 0 });
-    expect(range(state)).toEqual({ a: 2, b: 5 }); // the new note (column 6) is after the set end
+    state = run(at(state, 4), { type: 'SET_SECTION_END' });
+    state = run(at(state, 5), { type: 'TAP_FRET', s: 4, f: 0 });
+    expect(range(state)).toEqual({ a: 2, b: 4 }); // the new note (column 6) is after the set end
+  });
+
+  it('] on the last column (or [ on the first) leaves that edge open', () => {
+    let state = run(at(five(), 1), { type: 'SET_SECTION_START' });
+    state = run(at(state, 4), { type: 'SET_SECTION_END' }, { type: 'TAP_FRET', s: 4, f: 0 });
+    expect(range(state)).toEqual({ a: 1, b: 5 });
+    expect(sectionRange(sheet(state))?.openEnd).toBe(true);
+    state = run(at(state, 3), { type: 'SET_SECTION_END' }, { type: 'SELECT_COLUMN', i: 0 }, { type: 'DONE' }, { type: 'SET_SECTION_START' });
+    expect(sectionRange(sheet(state))).toMatchObject({ a: 0, b: 3, openStart: true });
   });
 
   it('with no start set, notes added at the beginning still belong', () => {
