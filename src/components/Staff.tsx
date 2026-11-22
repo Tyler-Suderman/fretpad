@@ -18,6 +18,7 @@ function NoteColumn({ col, onSelect }: { col: StaffColumn; onSelect: OnSelect })
     col.sectionStart && 'loopstart',
     col.sectionEnd && 'loopend',
     col.sectionOpen && 'loopopen',
+    col.measureStart && 'measure',
   ]
     .filter(Boolean)
     .join(' ');

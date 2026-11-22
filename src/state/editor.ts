@@ -38,6 +38,8 @@ export type ModeType = Mode['type'];
 
 export interface Settings extends PlaybackSettings {
   showScale: boolean;
+  /** Faint measure lines in the tab (4/4: every `div` columns). */
+  showMeasures: boolean;
 }
 
 interface UndoStep {
@@ -412,7 +414,7 @@ export function createEditorState(saved: SavedEditor | null): EditorState {
   const currentId = sheets.some((s) => s.id === saved?.currentId) ? saved!.currentId! : first.id;
   return {
     doc: { sheets, currentId },
-    settings: { loop: true, click: true, showScale: true, ...saved?.settings },
+    settings: { loop: true, click: true, showScale: true, showMeasures: true, ...saved?.settings },
     mode: ADDING,
     undo: [],
   };

@@ -128,6 +128,9 @@ select:disabled{cursor:default}
 .labels{min-width:44px;padding:0 6px 0 16px;cursor:pointer;position:sticky;left:0;z-index:4;box-shadow:6px 0 6px -6px rgba(0,0,0,.25)}
 .labels .cell{background:none;justify-content:flex-start;font-family:var(--mono);font-size:13px;color:var(--muted);font-weight:700}
 .col.bar{min-width:10px;cursor:pointer}
+/* automatic measure line: a faint rule on the left edge of the measure's first column, across the strings */
+.col.measure{background-image:linear-gradient(to right,color-mix(in srgb,var(--ink) 22%,transparent) 0 1.5px,transparent 1.5px);
+  background-size:100% calc(100% - 24px);background-position:0 50%;background-repeat:no-repeat}
 .col.bar .cell{position:relative}
 .col.bar .cell::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1.5px;background:var(--ink);transform:translateX(-50%)}
 .col.bar .cell:first-child::before{top:50%}

@@ -82,6 +82,13 @@ export default function SetupBar({ sheet, settings, dispatch: send, onTouch, onD
         ·
       </span>
       {divSelect}
+      <Toggle
+        on={settings.showMeasures}
+        onClick={() => dispatch({ type: 'TOGGLE', setting: 'showMeasures' })}
+        title="Faint measure lines in the tab (4/4)"
+      >
+        Measures
+      </Toggle>
       <span className="sep" aria-hidden="true">
         ·
       </span>

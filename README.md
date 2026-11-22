@@ -22,7 +22,7 @@ npm run build    # type-checks, then builds the static site in dist/
 - **Playback:** tempo, note value per column, loop and metronome click. Space plays.
 - **Loop section:** select a column and press **[** to start a section there or **]** to end it (or use the [ ] buttons by Loop). In Reconfinger the brackets take the selected run. Play then covers just the section, repeating if Loop is on; **×** clears it. Saved with the sheet.
 - **Sheets** menu: switch, add or delete sheets. They save in your browser's local storage. **Export** gives plain-text tab with a fingering row.
-- Bar lines from older sheets still show and can be deleted, but there's no tool to add new ones.
+- **Measures** (setup line): faint measure lines every 4 beats (4/4), following the note value. Bar lines from older sheets still show and restart the count, but there's no tool to add new ones.
 
 ## How the code is organised
 

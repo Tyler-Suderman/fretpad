@@ -39,6 +39,8 @@ export interface StaffColumn {
   sectionEnd: boolean;
   /** This edge of the section was never set, so it follows the sheet (drawn fading out). */
   sectionOpen: boolean;
+  /** A measure starts at this column (a faint line on its left edge). */
+  measureStart: boolean;
 }
 
 export interface StaffView {
@@ -47,12 +49,31 @@ export interface StaffView {
   key: Key | null;
 }
 
+/**
+ * Columns where a new measure starts, assuming 4/4: every `div` timed columns (4 beats of 1/div notes).
+ * Bar lines take no time and restart the count, the same way playback counts beats.
+ */
+export function measureStarts(events: readonly Column[], div: number): Set<number> {
+  const starts = new Set<number>();
+  let t = 0;
+  events.forEach((ev, i) => {
+    if (ev.kind === 'bar') {
+      t = 0;
+      return;
+    }
+    if (t > 0 && t % div === 0) starts.add(i);
+    t += 1;
+  });
+  return starts;
+}
+
 /** Columns of the tab staff with their highlight flags. */
 export function staffView(state: EditorState, playingIndex: number): StaffView {
   const sheet = currentSheet(state);
   const { mode } = state;
   const scale = scaleOf(sheet.key);
   const section = sectionRange(sheet);
+  const measures = state.settings.showMeasures ? measureStarts(sheet.events, sheet.div) : new Set<number>();
   const columns = sheet.events.map(
     (ev, i): StaffColumn => ({
       i,
@@ -67,6 +88,7 @@ export function staffView(state: EditorState, playingIndex: number): StaffView {
       sectionStart: section?.a === i,
       sectionEnd: section?.b === i,
       sectionOpen: (section?.a === i && section.openStart) || (section?.b === i && section.openEnd),
+      measureStart: measures.has(i),
     }),
   );
   return { columns, startSelected: mode.type !== 'fingering' && sheet.cursor === -1, key: sheet.key };

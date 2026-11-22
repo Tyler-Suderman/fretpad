@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { newSheet } from '../music/tab.ts';
+import { barEvent, newSheet, noteEvent, restEvent } from '../music/tab.ts';
 import { midiAt } from '../music/theory.ts';
 import { createEditorState, editorReducer } from './editor.ts';
 import type { Action, EditorState } from './editor.ts';
-import { fretboardView } from './views.ts';
+import { fretboardView, measureStarts } from './views.ts';
 
 const run = (state: EditorState, ...actions: Action[]): EditorState => actions.reduce(editorReducer, state);
 const blank = (): EditorState => createEditorState({ sheets: [newSheet('Test')] });
@@ -31,5 +31,17 @@ describe('fretboard focus (same pitch and octave marks)', () => {
       { type: 'STEP', d: -1, extend: true },
     );
     expect(fretboardView(state, -1).focus).toBeNull();
+  });
+});
+
+describe('measure lines (4/4)', () => {
+  const notes = (n: number) => Array.from({ length: n }, () => noteEvent(5, 1, '1'));
+
+  it('start every div timed columns; rests count, bar lines restart the count', () => {
+    expect([...measureStarts(notes(9), 4)]).toEqual([4, 8]);
+    expect([...measureStarts([...notes(3), restEvent(), ...notes(2)], 4)]).toEqual([4]);
+    // bar after 2 columns restarts: next measure line 4 timed columns after the bar
+    expect([...measureStarts([...notes(2), barEvent(), ...notes(5)], 4)]).toEqual([7]);
+    expect([...measureStarts(notes(17), 8)]).toEqual([8, 16]);
   });
 });
